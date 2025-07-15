@@ -648,26 +648,33 @@ function applyImageSizeFilter() {
     const minArea = MIN_IMAGE_SIZE * MIN_IMAGE_SIZE;
 
     document.querySelectorAll('.page-section').forEach(page => {
-        const allImages = page.querySelectorAll('.relative.group');
+        const allImageCards = page.querySelectorAll('.relative.group');
 
-        allImages.forEach(card => {
+        allImageCards.forEach(card => {
             const img = card.querySelector('img');
             if (img) {
-                const width = parseInt(img.dataset.width);
-                const height = parseInt(img.dataset.height);
+                const width = parseInt(img.dataset.width) || 0;
+                const height = parseInt(img.dataset.height) || 0;
                 const area = width * height;
 
-                if (area < minArea) {
+                const isSmall = area < minArea;
+
+                if (isSmall) {
+                    // This is a small image, hide or show based on the checkbox
                     card.style.display = isChecked ? 'block' : 'none';
                 } else {
+                    // This is a regular image, always show
                     card.style.display = 'block';
                 }
             }
         });
 
+        // Also toggle the visibility of the "Small Images & UI Elements" container
         const smallImagesContainer = page.querySelector('.small-images');
         if (smallImagesContainer) {
-            smallImagesContainer.style.display = isChecked ? 'block' : 'none';
+            const smallImageCards = smallImagesContainer.querySelectorAll('.relative.group');
+            // Show the container if the checkbox is checked and there are small images
+            smallImagesContainer.style.display = (isChecked && smallImageCards.length > 0) ? 'block' : 'none';
         }
     });
 }
@@ -810,7 +817,6 @@ function saveSettings() {
         // Show feedback
         const button = document.querySelector('button[onclick="saveSettings()"]');
         if (button) {
-            const originalText = button.textContent;
             button.textContent = 'Saved!';
             button.classList.remove('bg-purple-600', 'hover:bg-purple-700');
             button.classList.add('bg-green-600', 'hover:bg-green-700');
@@ -821,6 +827,8 @@ function saveSettings() {
             }, 2000);
         }
         console.log('Settings saved successfully');
+
+        // Apply settings to the UI
         applySettingsToUI();
     } catch (error) {
         console.error('Error saving settings:', error);

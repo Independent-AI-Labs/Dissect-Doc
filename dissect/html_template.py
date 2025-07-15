@@ -366,14 +366,6 @@ class HTMLTemplate:
                 <p class="text-xs text-gray-500 mt-1">Number of pages to load at once</p>
             </div>
             
-            <div class="pt-3 border-t border-gray-200">
-                <button 
-                    onclick="saveSettings()"
-                    class="w-full bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors mb-2"
-                >
-                    Save & Apply
-                </button>
-            </div>
         </div>
     </div>
         """
@@ -647,31 +639,30 @@ function applyImageSizeFilter() {
     const isChecked = showSmallCheck ? showSmallCheck.checked : false;
     const minArea = MIN_IMAGE_SIZE * MIN_IMAGE_SIZE;
 
-    document.querySelectorAll('.page-section').forEach(page => {
-        const regularImagesContainer = page.querySelector('.regular-images');
-        if (regularImagesContainer) {
-            const regularImages = regularImagesContainer.querySelectorAll('.relative.group');
-            regularImages.forEach(card => {
-                card.style.display = 'block';
-            });
-        }
+    document.querySelectorAll('.relative.group').forEach(card => {
+        const img = card.querySelector('img');
+        if (img) {
+            const width = parseInt(img.dataset.width) || 0;
+            const height = parseInt(img.dataset.height) || 0;
+            const area = width * height;
 
-        const smallImagesContainer = page.querySelector('.small-images');
-        if (smallImagesContainer) {
-            const smallImages = smallImagesContainer.querySelectorAll('.relative.group');
-            smallImages.forEach(card => {
-                const img = card.querySelector('img');
-                if (img) {
-                    const width = parseInt(img.dataset.width) || 0;
-                    const height = parseInt(img.dataset.height) || 0;
-                    const area = width * height;
-                    if (area < minArea) {
-                        card.style.display = isChecked ? 'block' : 'none';
-                    }
-                }
-            });
-            smallImagesContainer.style.display = isChecked ? 'block' : 'none';
+            if (area < minArea) {
+                card.style.display = isChecked ? 'block' : 'none';
+            } else {
+                card.style.display = 'block';
+            }
         }
+    });
+
+    document.querySelectorAll('.small-images').forEach(container => {
+        const smallImages = container.querySelectorAll('.relative.group');
+        let hasVisibleSmallImages = false;
+        smallImages.forEach(card => {
+            if (card.style.display !== 'none') {
+                hasVisibleSmallImages = true;
+            }
+        });
+        container.style.display = hasVisibleSmallImages ? 'block' : 'none';
     });
 }
 
@@ -810,18 +801,6 @@ function saveSettings() {
         };
         localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
         
-        // Show feedback
-        const button = document.querySelector('button[onclick="saveSettings()"]');
-        if (button) {
-            button.textContent = 'Saved!';
-            button.classList.remove('bg-purple-600', 'hover:bg-purple-700');
-            button.classList.add('bg-green-600', 'hover:bg-green-700');
-            setTimeout(() => {
-                button.textContent = 'Save & Apply';
-                button.classList.remove('bg-green-600', 'hover:bg-green-700');
-                button.classList.add('bg-purple-600', 'hover:bg-purple-700');
-            }, 2000);
-        }
         console.log('Settings saved successfully');
 
         // Apply settings to the UI
@@ -885,7 +864,6 @@ function updateMinImageSize() {
         MIN_IMAGE_SIZE = parseInt(slider.value);
         valueDisplay.textContent = MIN_IMAGE_SIZE + 'px';
         applyImageSizeFilter();
-        saveSettings();
     }
 }
 
@@ -915,7 +893,6 @@ function toggleAutoLoad() {
 
 function toggleSmallImages() {
     applyImageSizeFilter();
-    saveSettings();
 }
 
 
@@ -1074,7 +1051,7 @@ function generateImagesSection(regular_images, small_images) {
                             </svg>
                             <span class="text-sm font-medium text-yellow-800">Small Images & UI Elements</span>
                         </div>
-                        <p class="text-xs text-yellow-600 mt-1">These images have an area smaller than ${MIN_image_size}×${MIN_IMAGE_SIZE} pixels and likely contain UI elements, icons, or decorative graphics</p>
+                        <p class="text-xs text-yellow-600 mt-1">These images have an area smaller than ${MIN_IMAGE_SIZE}×${MIN_IMAGE_SIZE} pixels and likely contain UI elements, icons, or decorative graphics</p>
                     </div>
                     <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
             `;
@@ -1140,6 +1117,8 @@ function generateImageCard(img, isSmall, isScreenshot = false) {
                         data-image-id="${dataImageId}"
                         data-image-filename="${img.filename}"
                         data-image-hash="${img.hash || ''}"
+                        data-width="${img.width}"
+                        data-height="${img.height}"
                         loading="lazy"
                     >
                     <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-opacity duration-200"></div>

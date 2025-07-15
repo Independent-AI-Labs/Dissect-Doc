@@ -306,8 +306,9 @@ class HTMLBuilder:
         page_token_count = self._estimate_tokens(page_text)
         
         # Filter images by size
-        regular_page_images = [img for img in page_images if img.get('width', 0) >= self.min_image_size and img.get('height', 0) >= self.min_image_size]
-        small_page_images = [img for img in page_images if img.get('width', 0) < self.min_image_size or img.get('height', 0) < self.min_image_size]
+        min_area = self.min_image_size * self.min_image_size
+        regular_page_images = [img for img in page_images if img.get('width', 0) * img.get('height', 0) >= min_area]
+        small_page_images = [img for img in page_images if img.get('width', 0) * img.get('height', 0) < min_area]
         
         screenshot_filename = page_data.get('screenshot')
 
@@ -523,6 +524,7 @@ class HTMLBuilder:
                                 data-image-filename="{img['filename']}"
                                 data-image-hash="{img.get('hash', '')}"
                                 data-width="{img['width']}"
+                                data-height="{img['height']}"
                                 loading="lazy"
                             >
                             <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-opacity duration-200"></div>

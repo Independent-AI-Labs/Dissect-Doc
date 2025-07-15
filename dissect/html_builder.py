@@ -280,17 +280,17 @@ class HTMLBuilder:
         </div>
     </div>
     <script>
-        function reinitializeAI() {
-            if (window.initializeAI) {
+        function reinitializeAI() {{
+            if (window.initializeAI) {{
                 window.initializeAI();
-            }
-        }
+            }}
+        }}
 
         const originalLoadMorePages = window.loadMorePages;
-        window.loadMorePages = function() {
+        window.loadMorePages = function() {{
             originalLoadMorePages();
             setTimeout(reinitializeAI, 500);
-        }
+        }}
     </script>
         """
         

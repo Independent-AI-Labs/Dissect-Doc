@@ -13,8 +13,8 @@ from typing import Dict, List, Any, Optional
 from datetime import datetime
 
 # Import the new modules
-from html_builder import HTMLBuilder
-from html_template import HTMLTemplate
+from .html_builder import HTMLBuilder
+from .html_template import HTMLTemplate
 
 try:
     import fitz  # PyMuPDF
@@ -242,7 +242,9 @@ class PDFExtractor:
     def _extract_page_screenshot(self, page: fitz.Page, page_num: int, images_dir: Path) -> Optional[str]:
         """Extract a screenshot of the page and save it."""
         try:
-            pix = page.get_pixmap()
+            # Increase resolution by a factor of 2
+            matrix = fitz.Matrix(2, 2)
+            pix = page.get_pixmap(matrix=matrix)
             screenshot_filename = f"page_{page_num:03d}_screenshot.png"
             screenshot_path = images_dir / screenshot_filename
             pix.save(str(screenshot_path))

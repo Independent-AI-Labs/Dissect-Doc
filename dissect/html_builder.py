@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Dict, List, Any, Optional, Set, Tuple
 import logging
 
-from dissect.html_template import HTMLTemplate
+from .html_template import HTMLTemplate
 
 
 class HTMLBuilder:

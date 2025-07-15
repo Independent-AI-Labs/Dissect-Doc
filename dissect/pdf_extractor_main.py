@@ -180,7 +180,10 @@ class PDFExtractor:
                     page_data['images'].append(img_data)
         except Exception as e:
             self.logger.warning(f"Image extraction failed on page {page_num}: {e}")
-        
+
+        # Extract page screenshot
+        page_data['screenshot'] = self._extract_page_screenshot(page, page_num, images_dir)
+
         return page_data
     
     def _extract_image(self, page, img, page_num: int, img_index: int, images_dir: Path) -> Optional[Dict[str, Any]]:
@@ -230,6 +233,11 @@ class PDFExtractor:
         except Exception as e:
             self.logger.warning(f"Failed to extract image {img_index} from page {page_num}: {e}")
             return {
+                'page': page_num,
+                'index': img_index,
+                'filename': None,
+                'error': str(e)
+            }
 
     def _extract_page_screenshot(self, page: fitz.Page, page_num: int, images_dir: Path) -> Optional[str]:
         """Extract a screenshot of the page and save it."""
@@ -243,11 +251,6 @@ class PDFExtractor:
         except Exception as e:
             self.logger.error(f"Failed to generate screenshot for page {page_num}: {e}")
             return None
-                'page': page_num,
-                'index': img_index,
-                'filename': None,
-                'error': str(e)
-            }
     
     def _add_image_hashes(self, images: List[Dict[str, Any]]) -> None:
         """Add content hashes to images for duplicate detection"""

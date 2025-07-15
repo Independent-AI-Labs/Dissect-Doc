@@ -388,7 +388,7 @@ class HTMLBuilder:
                         data-image-id="page_{page_num}_screenshot"
                     >
                     {self._generate_ai_button()}
-                    {self._generate_ai_analysis_section({{'page': page_num, 'index': 'screenshot'}})}
+                    {self._generate_ai_analysis_section({'page': page_num, 'index': 'screenshot'})}
                 </div>
             </div>
         </div>
@@ -509,7 +509,7 @@ class HTMLBuilder:
                     <div class="{card_class}">
                         <div class="aspect-w-16 aspect-h-9 bg-gray-100 relative" onclick="openModal('images/{img['filename']}', '{img['page']}', '{img['index']}', '{img['width']}', '{img['height']}', '{img.get('format', 'unknown')}', '{self._format_bytes(img.get('size_bytes', 0))}', '{img.get('hash', '')[:8]}')">
                             <img 
-                                src="images/{img['filename']}" 
+                                src="./images/{img['filename']}"
                                 alt="Page {img['page']} Image {img['index']}"
                                 class="{image_class}"
                                 data-image-id="{img['page']}_{img['index']}"
@@ -580,7 +580,7 @@ class HTMLBuilder:
                         </svg>
                         AI Analysis
                     </span>
-                    <button 
+                    <button
                         class="text-xs bg-purple-100 hover:bg-purple-200 text-purple-700 px-2 py-1 rounded transition-colors"
                         onclick="toggleAnalysis('{image_id}')"
                         id="btn-{image_id}"

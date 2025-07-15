@@ -1005,7 +1005,16 @@ function generateScreenshotSection(screenshot_filename, page_num) {
         `;
     }
 
-    const showAI = API_KEY && API_KEY.trim() !== '';
+    const screenshot_img_obj = {
+        filename: screenshot_filename,
+        page: page_num,
+        index: 'screenshot',
+        width: 1024,
+        height: 768,
+        format: 'PNG',
+        size_bytes: 0,
+        hash: `screenshot_${page_num}`
+    };
 
     return `
         <div>
@@ -1015,28 +1024,7 @@ function generateScreenshotSection(screenshot_filename, page_num) {
                 </svg>
                 Page Screenshot
             </h3>
-            <div class="relative group">
-                <div class="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-                    <img
-                        src="images/${screenshot_filename}"
-                        alt="Screenshot of Page ${page_num}"
-                        class="w-full h-auto object-contain clickable-image"
-                        onclick="openModal('images/${screenshot_filename}')"
-                        data-image-id="page_${page_num}_screenshot"
-                    >
-                    ${showAI ? `
-                    <button
-                        class="absolute top-2 right-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white px-3 py-1 rounded-full text-xs font-semibold opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center space-x-1 cursor-pointer shadow-lg ai-analysis-button"
-                        onclick="analyzeImageFromButton(this, event)"
-                        title="Click for AI analysis"
-                    >
-                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                        </svg>
-                        <span>AI</span>
-                    </button>` : ''}
-                </div>
-            </div>
+            ${generateImageCard(screenshot_img_obj, false, true)}
         </div>
     `;
 }
@@ -1098,7 +1086,7 @@ function generateImagesSection(regular_images, small_images) {
     return content;
 }
 
-function generateImageCard(img, isSmall) {
+function generateImageCard(img, isSmall, isScreenshot = false) {
     if (!img.filename) {
         return `
             <div class="bg-red-50 border border-red-200 rounded-lg p-4">
@@ -1115,7 +1103,7 @@ function generateImageCard(img, isSmall) {
     const cardClass = "bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow";
     const imageClass = isSmall ? 
         "w-full h-20 object-contain clickable-image hover:scale-105 transition-transform duration-200" :
-        "w-full h-48 object-contain clickable-image hover:scale-105 transition-transform duration-200";
+        isScreenshot ? "w-full h-auto object-contain clickable-image" : "w-full h-48 object-contain clickable-image hover:scale-105 transition-transform duration-200";
     const paddingClass = isSmall ? "p-2" : "p-3";
     
     const fileSize = formatBytes(img.size_bytes || 0);
@@ -1124,21 +1112,32 @@ function generateImageCard(img, isSmall) {
     // Check if AI features should be shown
     const showAI = API_KEY && API_KEY.trim() !== '' && !isSmall;
     
+    // Set up indicators (only for non-screenshots)
+    let indicator = '';
+    if (!isScreenshot) {
+        // In a full implementation, you might pass duplicate info from the backend
+        // For now, we'll just show "UNIQUE" as a placeholder
+        indicator = '<div class="unique-indicator">UNIQUE</div>';
+    }
+
+    const altText = isScreenshot ? `Screenshot of Page ${img.page}` : `Page ${img.page} Image ${img.index}`;
+    const dataImageId = isScreenshot ? `page_${img.page}_screenshot` : `${img.page}_${img.index}`;
+
     return `
         <div class="relative group">
             <div class="${cardClass}">
-                <div class="aspect-w-16 aspect-h-9 bg-gray-100 relative" onclick="openModal('${img.filename}', '${img.page}', '${img.index}', '${img.width}', '${img.height}', '${img.format || 'unknown'}', '${fileSize}', '${hashShort}')">
+                <div class="aspect-w-16 aspect-h-9 bg-gray-100 relative" onclick="openModal('images/${img.filename}', '${img.page}', '${img.index}', '${img.width}', '${img.height}', '${img.format || 'unknown'}', '${fileSize}', '${hashShort}')">
                     <img 
                         src="images/${img.filename}" 
-                        alt="Page ${img.page} Image ${img.index}"
+                        alt="${altText}"
                         class="${imageClass}"
-                        data-image-id="${img.page}_${img.index}"
+                        data-image-id="${dataImageId}"
                         data-image-filename="${img.filename}"
                         data-image-hash="${img.hash || ''}"
                         loading="lazy"
                     >
                     <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-opacity duration-200"></div>
-                    <div class="unique-indicator">UNIQUE</div>
+                    ${indicator}
                     
                     ${showAI ? `
                     <button 
@@ -1158,7 +1157,7 @@ function generateImageCard(img, isSmall) {
                 </div>
                 <div class="${paddingClass}">
                     <div class="flex items-center justify-between text-xs text-gray-600">
-                        <span class="font-medium">Image ${img.index}</span>
+                        <span class="font-medium">${isScreenshot ? 'Screenshot' : `Image ${img.index}`}</span>
                         <span class="bg-gray-100 px-1 py-0.5 rounded text-xs">${(img.format || 'unknown').toUpperCase()}</span>
                     </div>
                     ${!isSmall ? `<div class="mt-1 text-xs text-gray-500"><span>${img.width} × ${img.height}</span></div>` : ''}
@@ -1170,7 +1169,7 @@ function generateImageCard(img, isSmall) {
 }
 
 function generateAIAnalysisSection(img) {
-    const imageId = `${img.page}_${img.index}`;
+    const imageId = img.index === 'screenshot' ? `page_${img.page}_screenshot` : `${img.page}_${img.index}`;
     
     return `
         <div class="mt-3 pt-3 border-t border-gray-100 ai-analysis-section">

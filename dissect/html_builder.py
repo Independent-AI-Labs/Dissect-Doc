@@ -370,6 +370,18 @@ class HTMLBuilder:
             </div>
             """
 
+        # Create a mock image object for the screenshot to reuse the card generation logic
+        screenshot_img_obj = {
+            'filename': screenshot_filename,
+            'page': page_num,
+            'index': 'screenshot',
+            'width': 1024,  # Default width, can be adjusted
+            'height': 768, # Default height
+            'format': 'PNG',
+            'size_bytes': 0, # Not available, can be omitted
+            'hash': f"screenshot_{page_num}"
+        }
+
         return f"""
         <div>
             <h3 class="text-lg font-semibold text-gray-900 mb-3 flex items-center">
@@ -378,19 +390,7 @@ class HTMLBuilder:
                 </svg>
                 Page Screenshot
             </h3>
-            <div class="relative group">
-                <div class="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-                    <img
-                        src="images/{screenshot_filename}"
-                        alt="Screenshot of Page {page_num}"
-                        class="w-full h-auto object-contain clickable-image"
-                        onclick="openModal('images/{screenshot_filename}')"
-                        data-image-id="page_{page_num}_screenshot"
-                    >
-                    {self._generate_ai_button()}
-                    {self._generate_ai_analysis_section({'page': page_num, 'index': 'screenshot'})}
-                </div>
-            </div>
+            {self._generate_image_card(screenshot_img_obj, is_small=False, is_screenshot=True)}
         </div>
         """
     
@@ -455,7 +455,7 @@ class HTMLBuilder:
         
         return content
     
-    def _generate_image_card(self, img: Dict[str, Any], is_small: bool = False) -> str:
+    def _generate_image_card(self, img: Dict[str, Any], is_small: bool = False, is_screenshot: bool = False) -> str:
         """Generate a single image card"""
         if img.get('filename'):
             # Check if this is a duplicate or similar image
@@ -463,7 +463,7 @@ class HTMLBuilder:
             is_similar = False
             duplicate_count = 0
             
-            if img.get('hash'):
+            if not is_screenshot and img.get('hash'):
                 for img_hash, duplicates in self.duplicate_groups.items():
                     if img['hash'] == img_hash:
                         is_duplicate = True
@@ -481,11 +481,13 @@ class HTMLBuilder:
                 padding_class = "p-2"
             else:
                 card_class = "bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow"
-                image_class = "w-full h-48 object-contain clickable-image hover:scale-105 transition-transform duration-200"
+                image_class = "w-full h-auto object-contain clickable-image" if is_screenshot else "w-full h-48 object-contain clickable-image hover:scale-105 transition-transform duration-200"
                 padding_class = "p-3"
-            
+
             # Choose appropriate indicator
-            if is_duplicate:
+            if is_screenshot:
+                indicator = ""
+            elif is_duplicate:
                 indicator = f"""
                     <div class="duplicate-indicator">
                         DUP {duplicate_count}x
@@ -504,15 +506,18 @@ class HTMLBuilder:
                     </div>
                 """
             
+            alt_text = f"Screenshot of Page {img['page']}" if is_screenshot else f"Page {img['page']} Image {img['index']}"
+            data_image_id = f"page_{img['page']}_screenshot" if is_screenshot else f"{img['page']}_{img['index']}"
+
             return f"""
                 <div class="relative group">
                     <div class="{card_class}">
                         <div class="aspect-w-16 aspect-h-9 bg-gray-100 relative" onclick="openModal('images/{img['filename']}', '{img['page']}', '{img['index']}', '{img['width']}', '{img['height']}', '{img.get('format', 'unknown')}', '{self._format_bytes(img.get('size_bytes', 0))}', '{img.get('hash', '')[:8]}')">
                             <img 
                                 src="./images/{img['filename']}"
-                                alt="Page {img['page']} Image {img['index']}"
+                                alt="{alt_text}"
                                 class="{image_class}"
-                                data-image-id="{img['page']}_{img['index']}"
+                                data-image-id="{data_image_id}"
                                 data-image-filename="{img['filename']}"
                                 data-image-hash="{img.get('hash', '')}"
                                 data-width="{img['width']}"
@@ -530,8 +535,8 @@ class HTMLBuilder:
                         </div>
                         <div class="{padding_class}">
                             <div class="flex items-center justify-between text-xs text-gray-600">
-                                <span class="font-medium">Image {img['index']}</span>
-                                <span class="bg-gray-100 px-1 py-0.5 rounded text-xs">{img['format'].upper()}</span>
+                                <span class="font-medium">{'Screenshot' if is_screenshot else f"Image {img['index']}"}</span>
+                                <span class="bg-gray-100 px-1 py-0.5 rounded text-xs">{img.get('format', 'PNG').upper()}</span>
                             </div>
                             {f'<div class="mt-1 text-xs text-gray-500"><span>{img["width"]} × {img["height"]}</span></div>' if not is_small else ''}
                             {self._generate_ai_analysis_section(img) if not is_small else ''}
@@ -569,7 +574,7 @@ class HTMLBuilder:
     
     def _generate_ai_analysis_section(self, img: Dict[str, Any]) -> str:
         """Generate AI analysis section in the card"""
-        image_id = f"{img['page']}_{img['index']}"
+        image_id = f"page_{img['page']}_screenshot" if img['index'] == 'screenshot' else f"{img['page']}_{img['index']}"
         
         return f"""
             <div class="mt-3 pt-3 border-t border-gray-100 ai-analysis-section" style="display: none;">

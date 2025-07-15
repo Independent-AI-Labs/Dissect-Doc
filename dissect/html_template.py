@@ -962,6 +962,7 @@ function renderPageFromData(pageNumber) {
     const small_page_images = page_images.filter(img => 
         (img.width || 0) < MIN_IMAGE_SIZE || (img.height || 0) < MIN_IMAGE_SIZE
     );
+    const screenshot_filename = pageData.screenshot;
     
     return `
         <div class="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden page-section" data-page="${pageNumber}">
@@ -987,24 +988,74 @@ function renderPageFromData(pageNumber) {
             </div>
             
             <div class="p-6">
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <div class="space-y-6">
-                        <div>
-                            <h3 class="text-lg font-semibold text-gray-900 mb-3 flex items-center">
-                                <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                                </svg>
-                                Text Content
-                            </h3>
-                            <div class="bg-gray-50 rounded-lg p-4 max-h-96 overflow-y-auto">
-                                <pre class="text-sm text-gray-700 whitespace-pre-wrap font-mono leading-relaxed">${pageData.text.substring(0, 2000)}${pageData.text.length > 2000 ? '...' : ''}</pre>
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div class="lg:col-span-1">
+                        ${generateScreenshotSection(screenshot_filename, pageNumber)}
+                    </div>
+                    <div class="lg:col-span-2 grid grid-cols-1 gap-8">
+                        <div class="space-y-6">
+                            <div>
+                                <h3 class="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+                                    <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                    </svg>
+                                    Text Content
+                                </h3>
+                                <div class="bg-gray-50 rounded-lg p-4 max-h-96 overflow-y-auto">
+                                    <pre class="text-sm text-gray-700 whitespace-pre-wrap font-mono leading-relaxed">${pageData.text.substring(0, 2000)}${pageData.text.length > 2000 ? '...' : ''}</pre>
+                                </div>
                             </div>
                         </div>
+
+                        <div class="space-y-6">
+                            ${generateImagesSection(regular_page_images, small_page_images)}
+                        </div>
                     </div>
-                    
-                    <div class="space-y-6">
-                        ${generateImagesSection(regular_page_images, small_page_images)}
-                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function generateScreenshotSection(screenshot_filename, page_num) {
+    if (!screenshot_filename) {
+        return `
+            <div class="bg-gray-50 rounded-lg p-8 text-center">
+                <p class="text-gray-500">No screenshot available</p>
+            </div>
+        `;
+    }
+
+    const showAI = API_KEY && API_KEY.trim() !== '';
+
+    return `
+        <div>
+            <h3 class="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+                <svg class="w-5 h-5 mr-2 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                </svg>
+                Page Screenshot
+            </h3>
+            <div class="relative group">
+                <div class="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                    <img
+                        src="images/${screenshot_filename}"
+                        alt="Screenshot of Page ${page_num}"
+                        class="w-full h-auto object-contain clickable-image"
+                        onclick="openModal('images/${screenshot_filename}')"
+                        data-image-id="page_${page_num}_screenshot"
+                    >
+                    ${showAI ? `
+                    <button
+                        class="absolute top-2 right-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white px-3 py-1 rounded-full text-xs font-semibold opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center space-x-1 cursor-pointer shadow-lg ai-analysis-button"
+                        onclick="analyzeImageFromButton(this, event)"
+                        title="Click for AI analysis"
+                    >
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                        </svg>
+                        <span>AI</span>
+                    </button>` : ''}
                 </div>
             </div>
         </div>

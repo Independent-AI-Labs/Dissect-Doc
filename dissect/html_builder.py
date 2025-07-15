@@ -228,7 +228,8 @@ class HTMLBuilder:
                 'text': page_data.get('text', ''),
                 'word_count': self._count_words(page_data.get('text', '')),
                 'token_count': self._estimate_tokens(page_data.get('text', '')),
-                'images': [img for img in self.extraction_result['images'] if img['page'] == page_data['page_number']]
+                'images': [img for img in self.extraction_result['images'] if img['page'] == page_data['page_number']],
+                'screenshot': page_data.get('screenshot')
             }
         
         # Save to JSON file
@@ -505,7 +506,7 @@ class HTMLBuilder:
             return f"""
                 <div class="relative group">
                     <div class="{card_class}">
-                        <div class="aspect-w-16 aspect-h-9 bg-gray-100 relative" onclick="openModal('{img['filename']}', '{img['page']}', '{img['index']}', '{img['width']}', '{img['height']}', '{img.get('format', 'unknown')}', '{self._format_bytes(img.get('size_bytes', 0))}', '{img.get('hash', '')[:8]}')">
+                        <div class="aspect-w-16 aspect-h-9 bg-gray-100 relative" onclick="openModal('images/{img['filename']}', '{img['page']}', '{img['index']}', '{img['width']}', '{img['height']}', '{img.get('format', 'unknown')}', '{self._format_bytes(img.get('size_bytes', 0))}', '{img.get('hash', '')[:8]}')">
                             <img 
                                 src="images/{img['filename']}" 
                                 alt="Page {img['page']} Image {img['index']}"

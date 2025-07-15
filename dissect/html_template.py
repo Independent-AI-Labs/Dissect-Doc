@@ -41,7 +41,7 @@ class HTMLTemplate:
         """CSS styles for the application"""
         return """
     <style>
-        .modal {
+        .modal, .ai-modal {
             display: none;
             position: fixed;
             z-index: 1000;
@@ -52,7 +52,7 @@ class HTMLTemplate:
             background-color: rgba(0, 0, 0, 0.8);
             backdrop-filter: blur(5px);
         }
-        .modal.show {
+        .modal.show, .ai-modal.show {
             display: flex;
             align-items: center;
             justify-content: center;
@@ -68,6 +68,15 @@ class HTMLTemplate:
             object-fit: contain;
             border-radius: 8px;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+        .ai-modal-content {
+            background-color: #f3f4f6;
+            padding: 2rem;
+            border-radius: 0.5rem;
+            width: 90vw;
+            max-width: 1200px;
+            height: 90vh;
+            overflow-y: auto;
         }
         .duplicate-indicator {
             position: absolute;
@@ -266,6 +275,21 @@ class HTMLTemplate:
             </div>
             
             <img id="modalImage" class="modal-image" alt="Full size image">
+        </div>
+    </div>
+
+    <div id="aiModal" class="ai-modal">
+        <div class="ai-modal-content">
+            <button
+                onclick="closeAIModal()"
+                class="absolute top-4 right-4 z-10 bg-gray-400 hover:bg-gray-500 text-white w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200"
+                title="Close (ESC)"
+            >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+            <div id="aiModalBody"></div>
         </div>
     </div>
         """
@@ -1229,13 +1253,13 @@ function setupIntersectionObserver() {
 }
 
 // Modal functions
-function openModal(filename, page, index, width, height, format, fileSize, hash) {
+function openModal(imageSrc, page, index, width, height, format, fileSize, hash) {
     const modal = document.getElementById('imageModal');
     const modalImage = document.getElementById('modalImage');
     const modalInfo = document.getElementById('modalImageInfo');
     
     if (modal && modalImage && modalInfo) {
-        modalImage.src = 'images/' + filename;
+        modalImage.src = imageSrc;
         modalImage.alt = 'Page ' + page + ' Image ' + index;
         
         let infoHTML = '<div class="grid grid-cols-2 gap-4 text-sm">';
@@ -1247,7 +1271,7 @@ function openModal(filename, page, index, width, height, format, fileSize, hash)
         if (hash && hash !== 'undefined') {
             infoHTML += '<div><strong>Hash:</strong> ' + hash + '...</div>';
         }
-        infoHTML += '<div class="col-span-2"><strong>Filename:</strong> ' + filename + '</div>';
+        infoHTML += '<div class="col-span-2"><strong>Filename:</strong> ' + imageSrc.split('/').pop() + '</div>';
         infoHTML += '</div>';
         
         modalInfo.innerHTML = infoHTML;
@@ -1258,6 +1282,25 @@ function openModal(filename, page, index, width, height, format, fileSize, hash)
 
 function closeModal() {
     const modal = document.getElementById('imageModal');
+    if (modal) {
+        modal.classList.remove('show');
+        document.body.style.overflow = 'auto';
+    }
+}
+
+function openAIModal(analysis) {
+    const modal = document.getElementById('aiModal');
+    const body = document.getElementById('aiModalBody');
+
+    if (modal && body) {
+        body.innerHTML = analysis;
+        modal.classList.add('show');
+        document.body.style.overflow = 'hidden';
+    }
+}
+
+function closeAIModal() {
+    const modal = document.getElementById('aiModal');
     if (modal) {
         modal.classList.remove('show');
         document.body.style.overflow = 'auto';
@@ -1408,7 +1451,7 @@ function showAnalysis(imageId, analysis) {
     
     if (isLong) {
         content += '<div class="mt-2 text-center">';
-        content += '<button onclick="toggleAnalysisExpansion(' + "'" + imageId + "'" + ')" class="text-xs text-purple-600 hover:text-purple-800 font-medium bg-purple-50 px-2 py-1 rounded expand-pill">Show More</button>';
+        content += '<button onclick="openAIModal(analysisCache.get(' + "'" + imageId + "'" + '))" class="text-xs text-purple-600 hover:text-purple-800 font-medium bg-purple-50 px-2 py-1 rounded expand-pill">Show More</button>';
         content += '</div>';
     }
     
@@ -1416,11 +1459,11 @@ function showAnalysis(imageId, analysis) {
     
     if (analysisDiv) {
         analysisDiv.innerHTML = content;
-        analysisCache.set(imageId, content);
+        analysisCache.set(imageId, parsedAnalysis);
         
         const img = document.querySelector('[data-image-id="' + imageId + '"]');
         if (img && img.dataset.imageHash) {
-            hashAnalysisCache.set(img.dataset.imageHash, content);
+            hashAnalysisCache.set(img.dataset.imageHash, parsedAnalysis);
         }
     }
 }
@@ -1581,11 +1624,20 @@ document.addEventListener('DOMContentLoaded', async function() {
     }, 1500);
     
     // Add modal click handler
-    const modal = document.getElementById('imageModal');
-    if (modal) {
-        modal.addEventListener('click', function(e) {
+    const imageModal = document.getElementById('imageModal');
+    if (imageModal) {
+        imageModal.addEventListener('click', function(e) {
             if (e.target === this) {
                 closeModal();
+            }
+        });
+    }
+
+    const aiModal = document.getElementById('aiModal');
+    if (aiModal) {
+        aiModal.addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeAIModal();
             }
         });
     }
@@ -1694,6 +1746,8 @@ window.toggleSmallImages = toggleSmallImages;
 window.loadMorePages = loadMorePages;
 window.openModal = openModal;
 window.closeModal = closeModal;
+window.openAIModal = openAIModal;
+window.closeAIModal = closeAIModal;
 window.analyzeImageFromButton = analyzeImageFromButton;
 window.toggleAnalysis = toggleAnalysis;
 window.toggleAnalysisExpansion = toggleAnalysisExpansion;

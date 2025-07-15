@@ -509,7 +509,7 @@ class HTMLBuilder:
                     <div class="{card_class}">
                         <div class="aspect-w-16 aspect-h-9 bg-gray-100 relative" onclick="openModal('images/{img['filename']}', '{img['page']}', '{img['index']}', '{img['width']}', '{img['height']}', '{img.get('format', 'unknown')}', '{self._format_bytes(img.get('size_bytes', 0))}', '{img.get('hash', '')[:8]}')">
                             <img 
-                                src="./images/{img['filename']}"
+                                src="images/{img['filename']}"
                                 alt="Page {img['page']} Image {img['index']}"
                                 class="{image_class}"
                                 data-image-id="{img['page']}_{img['index']}"

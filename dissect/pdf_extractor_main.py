@@ -90,6 +90,7 @@ class PDFExtractor:
     
     def _extract_content(self, pdf_path: Path, images_dir: Path) -> Dict[str, Any]:
         """Extract text and images from PDF"""
+        self.logger.info(f"Opening PDF document...")
         doc = fitz.open(pdf_path)
         
         extraction_result = {
@@ -103,8 +104,11 @@ class PDFExtractor:
             'extraction_time': datetime.now().isoformat()
         }
         
+        self.logger.info(f"PDF has {len(doc)} pages")
+        
         # Extract metadata
         try:
+            self.logger.info("Extracting PDF metadata...")
             metadata = doc.metadata
             extraction_result['metadata'] = {
                 'title': metadata.get('title', ''),
@@ -114,8 +118,10 @@ class PDFExtractor:
                 'producer': metadata.get('producer', ''),
                 'creation_date': metadata.get('creationDate', ''),
                 'modification_date': metadata.get('modDate', ''),
-                'pdf_version': f"PDF {doc.pdf_version()}"
+                'format': metadata.get('format', 'PDF'),
+                'page_count': len(doc)
             }
+            self.logger.info("Metadata extracted successfully")
         except Exception as e:
             self.logger.warning(f"Failed to extract metadata: {e}")
             extraction_result['errors'].append(f"Metadata extraction failed: {str(e)}")
@@ -123,11 +129,16 @@ class PDFExtractor:
         # Extract content from each page
         for page_num in range(len(doc)):
             try:
+                self.logger.info(f"Processing page {page_num + 1}/{len(doc)}...")
                 page = doc[page_num]
                 page_data = self._extract_page_content(page, page_num + 1, images_dir)
                 extraction_result['pages_data'].append(page_data)
                 extraction_result['text'] += page_data['text'] + '\n\n'
                 extraction_result['images'].extend(page_data['images'])
+                
+                # Log progress
+                if len(page_data['images']) > 0:
+                    self.logger.info(f"  Extracted {len(page_data['images'])} images from page {page_num + 1}")
                 
             except Exception as e:
                 error_msg = f"Page {page_num + 1} extraction failed: {str(e)}"
@@ -137,7 +148,10 @@ class PDFExtractor:
         doc.close()
         
         # Post-process images to add hashes for duplicate detection
+        self.logger.info("Processing images for duplicate detection...")
         self._add_image_hashes(extraction_result['images'])
+        
+        self.logger.info(f"Extraction completed: {len(extraction_result['images'])} total images")
         
         return extraction_result
     

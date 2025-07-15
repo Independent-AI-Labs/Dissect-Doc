@@ -1,6 +1,6 @@
 """
-HTML Builder Module
-Builds HTML reports using the template module
+Enhanced HTML Builder Module
+Builds HTML reports with lazy loading and improved functionality
 """
 
 import json
@@ -13,7 +13,7 @@ from dissect.html_template import HTMLTemplate
 
 
 class HTMLBuilder:
-    """Builds HTML reports with enhanced features"""
+    """Builds HTML reports with enhanced features including lazy loading"""
     
     def __init__(self, extraction_result: Dict[str, Any], output_dir: Path, 
                  filename: str, api_key: Optional[str] = None, min_image_size: int = 256):
@@ -31,6 +31,10 @@ class HTMLBuilder:
         # Calculate word and token counts
         self.doc_word_count = self._count_words(self.extraction_result['text'])
         self.doc_token_count = self._estimate_tokens(self.extraction_result['text'])
+        
+        # Lazy loading configuration
+        self.pages_per_chunk = 25
+        self.total_pages = len(self.extraction_result['pages_data'])
         
     def _process_duplicate_images(self) -> Tuple[List[Dict[str, Any]], Dict[str, List[Dict[str, Any]]]]:
         """Process images to detect duplicates by hash and pixel similarity"""
@@ -146,63 +150,147 @@ class HTMLBuilder:
         return len(text) // 4
         
     def generate_html(self) -> str:
-        """Generate the complete HTML report"""
-        # Build all components
-        modal = HTMLTemplate.get_modal_template()
-        settings = HTMLTemplate.get_settings_template()
-        header = HTMLTemplate.get_header_template(
-            self.filename, 
-            self.extraction_result['pages'], 
-            len(self.unique_images)
-        )
-        stats = HTMLTemplate.get_stats_template(
-            self.extraction_result['pages'],
-            self.doc_word_count,
-            self.doc_token_count,
-            len(self.regular_images),
-            len(self.small_images),
-            len(self.unique_images),
-            len(self.extraction_result['images']) - len(self.unique_images),
-            self.min_image_size
-        )
-        content = self._generate_content()
-        footer = HTMLTemplate.get_footer_template()
+        """Generate the complete HTML report with lazy loading"""
+        self.logger.info("Starting HTML report generation...")
         
-        # Assemble the main template
-        main_template = HTMLTemplate.get_main_template(self.filename)
-        html_content = main_template.format(
-            modal=modal,
-            settings=settings,
-            header=header,
-            stats=stats,
-            content=content,
-            footer=footer
-        )
-        
-        # Save HTML file
-        html_file = self.output_dir / f"{self.filename}_report.html"
-        with open(html_file, 'w', encoding='utf-8') as f:
-            f.write(html_content)
-        
-        return str(html_file)
+        try:
+            # Build all components
+            self.logger.info("Generating modal template...")
+            modal = HTMLTemplate.get_modal_template()
+            
+            self.logger.info("Generating settings template...")
+            settings = HTMLTemplate.get_settings_template()
+            
+            self.logger.info("Generating header template...")
+            header = HTMLTemplate.get_header_template(
+                self.filename, 
+                self.extraction_result['pages'], 
+                len(self.unique_images)
+            )
+            
+            self.logger.info("Generating stats template...")
+            stats = HTMLTemplate.get_stats_template(
+                self.extraction_result['pages'],
+                self.doc_word_count,
+                self.doc_token_count,
+                len(self.regular_images),
+                len(self.small_images),
+                len(self.unique_images),
+                len(self.extraction_result['images']) - len(self.unique_images),
+                self.min_image_size
+            )
+            
+            self.logger.info("Generating lazy-loaded content...")
+            content = self._generate_lazy_content()
+            
+            self.logger.info("Generating footer template...")
+            footer = HTMLTemplate.get_footer_template()
+            
+            self.logger.info("Getting main template...")
+            main_template = HTMLTemplate.get_main_template(self.filename)
+            
+            self.logger.info("Replacing template placeholders...")
+            # Use simple string replacement with comment-style placeholders to avoid CSS/JS conflicts
+            html_content = main_template.replace('<!--MODAL_PLACEHOLDER-->', modal)
+            html_content = html_content.replace('<!--SETTINGS_PLACEHOLDER-->', settings)
+            html_content = html_content.replace('<!--HEADER_PLACEHOLDER-->', header)
+            html_content = html_content.replace('<!--STATS_PLACEHOLDER-->', stats)
+            html_content = html_content.replace('<!--CONTENT_PLACEHOLDER-->', content)
+            html_content = html_content.replace('<!--FOOTER_PLACEHOLDER-->', footer)
+            
+            # Generate JSON data for lazy loading
+            self._generate_pages_json()
+            
+            # Save HTML file
+            html_file = self.output_dir / f"{self.filename}_report.html"
+            self.logger.info(f"Writing HTML file to: {html_file}")
+            
+            with open(html_file, 'w', encoding='utf-8') as f:
+                f.write(html_content)
+            
+            self.logger.info("HTML report generation completed successfully!")
+            return str(html_file)
+            
+        except Exception as e:
+            self.logger.error(f"HTML generation failed at step: {str(e)}")
+            self.logger.error(f"Error type: {type(e).__name__}")
+            import traceback
+            self.logger.error(f"Traceback: {traceback.format_exc()}")
+            raise
     
-    def _generate_content(self) -> str:
-        """Generate main content section"""
+    def _generate_pages_json(self):
+        """Generate JSON data for lazy loading pages"""
+        pages_data = {}
+        
+        for i, page_data in enumerate(self.extraction_result['pages_data']):
+            pages_data[str(page_data['page_number'])] = {
+                'page_number': page_data['page_number'],
+                'text': page_data.get('text', ''),
+                'word_count': self._count_words(page_data.get('text', '')),
+                'token_count': self._estimate_tokens(page_data.get('text', '')),
+                'images': [img for img in self.extraction_result['images'] if img['page'] == page_data['page_number']]
+            }
+        
+        # Save to JSON file
+        json_file = self.output_dir / f"{self.filename}_pages.json"
+        with open(json_file, 'w', encoding='utf-8') as f:
+            json.dump(pages_data, f, indent=2, ensure_ascii=False)
+    
+    def _generate_lazy_content(self) -> str:
+        """Generate main content section with lazy loading structure"""
         content = f"""
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
-        <div class="space-y-8">
-        """
-        
-        # Generate page sections
-        for page_data in self.extraction_result['pages_data']:
-            content += self._generate_page_section(page_data)
-        
-        content += """
+        <div id="pagesContainer" class="space-y-8">
+            <!-- Loading indicator -->
+            <div id="loadingIndicator" class="text-center py-8">
+                <div class="inline-flex items-center px-4 py-2 font-semibold leading-6 text-sm shadow rounded-md text-white bg-indigo-500 hover:bg-indigo-400 transition ease-in-out duration-150 cursor-not-allowed">
+                    <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Loading pages...
+                </div>
+            </div>
+            
+            <!-- Load first chunk immediately -->
+            <div id="initialPages">
+                {self._generate_page_chunk(0, min(self.pages_per_chunk, self.total_pages))}
+            </div>
+            
+            <!-- Placeholder for additional chunks -->
+            <div id="lazyPages"></div>
+            
+            <!-- Load more button -->
+            <div id="loadMoreContainer" class="text-center py-8" style="display: none;">
+                <button id="loadMoreBtn" onclick="loadMorePages()" class="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg transform transition hover:scale-105">
+                    Load More Pages ({self.pages_per_chunk} more)
+                </button>
+            </div>
+            
+            <!-- End indicator -->
+            <div id="endIndicator" class="text-center py-8 text-gray-500" style="display: none;">
+                <div class="flex items-center justify-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                    All pages loaded
+                </div>
+            </div>
         </div>
     </div>
         """
         
         return content
+    
+    def _generate_page_chunk(self, start_idx: int, end_idx: int) -> str:
+        """Generate a chunk of pages"""
+        chunk_html = ""
+        
+        for i in range(start_idx, min(end_idx, self.total_pages)):
+            page_data = self.extraction_result['pages_data'][i]
+            chunk_html += self._generate_page_section(page_data)
+        
+        return chunk_html
     
     def _generate_page_section(self, page_data: Dict[str, Any]) -> str:
         """Generate a single page section"""
@@ -219,7 +307,7 @@ class HTMLBuilder:
         small_page_images = [img for img in page_images if img.get('width', 0) < self.min_image_size or img.get('height', 0) < self.min_image_size]
         
         return f"""
-        <div class="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+        <div class="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden page-section" data-page="{page_num}">
             <div class="bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-4">
                 <h2 class="text-xl font-semibold text-white flex items-center">
                     <span class="bg-white bg-opacity-20 rounded-full w-8 h-8 flex items-center justify-center mr-3 text-sm">
@@ -386,11 +474,12 @@ class HTMLBuilder:
                                 data-image-id="{img['page']}_{img['index']}"
                                 data-image-filename="{img['filename']}"
                                 data-image-hash="{img.get('hash', '')}"
+                                loading="lazy"
                             >
                             <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-opacity duration-200"></div>
                             {indicator}
                             
-                            {self._generate_ai_button() if self.api_key and not is_small else ''}
+                            {self._generate_ai_button() if not is_small else ''}
                             
                             <!-- Expand indicator -->
                             <div class="absolute bottom-1 right-1 bg-black bg-opacity-60 text-white px-1 py-0.5 rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity duration-200 expand-pill">
@@ -403,7 +492,7 @@ class HTMLBuilder:
                                 <span class="bg-gray-100 px-1 py-0.5 rounded text-xs">{img['format'].upper()}</span>
                             </div>
                             {f'<div class="mt-1 text-xs text-gray-500"><span>{img["width"]} × {img["height"]}</span></div>' if not is_small else ''}
-                            {self._generate_ai_analysis_section(img) if self.api_key and not is_small else ''}
+                            {self._generate_ai_analysis_section(img) if not is_small else ''}
                         </div>
                     </div>
                 </div>
@@ -424,9 +513,10 @@ class HTMLBuilder:
         """Generate clickable AI analysis button"""
         return """
             <button 
-                class="absolute top-2 right-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white px-3 py-1 rounded-full text-xs font-semibold opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center space-x-1 cursor-pointer shadow-lg"
+                class="absolute top-2 right-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white px-3 py-1 rounded-full text-xs font-semibold opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center space-x-1 cursor-pointer shadow-lg ai-analysis-button"
                 onclick="analyzeImageFromButton(this, event)"
                 title="Click for AI analysis"
+                style="display: none;"
             >
                 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
@@ -440,7 +530,7 @@ class HTMLBuilder:
         image_id = f"{img['page']}_{img['index']}"
         
         return f"""
-            <div class="mt-3 pt-3 border-t border-gray-100">
+            <div class="mt-3 pt-3 border-t border-gray-100 ai-analysis-section" style="display: none;">
                 <div class="flex items-center justify-between mb-2">
                     <span class="text-xs font-semibold text-purple-600 flex items-center">
                         <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">

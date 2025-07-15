@@ -370,6 +370,17 @@ class HTMLBuilder:
             </div>
             """
 
+        screenshot_img = {
+            'filename': screenshot_filename,
+            'page': page_num,
+            'index': 'screenshot',
+            'width': 0,
+            'height': 0,
+            'format': 'png',
+            'size_bytes': 0,
+            'hash': hashlib.md5(f"{screenshot_filename}{page_num}".encode()).hexdigest(),
+        }
+
         return f"""
         <div>
             <h3 class="text-lg font-semibold text-gray-900 mb-3 flex items-center">
@@ -378,22 +389,7 @@ class HTMLBuilder:
                 </svg>
                 Page Screenshot
             </h3>
-            <div class="relative group">
-                <div class="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-                    <img
-                        src="images/{screenshot_filename}"
-                        alt="Screenshot of Page {page_num}"
-                        class="w-full h-auto object-contain clickable-image"
-                        onclick="openModal('images/{screenshot_filename}', '{page_num}', 'screenshot', '', '', 'png', '', '')"
-                        data-image-id="page_{page_num}_screenshot"
-                        data-image-filename="{screenshot_filename}"
-                        data-image-hash=""
-                        data-width=""
-                    >
-                    {self._generate_ai_button()}
-                    {self._generate_ai_analysis_section({'page': page_num, 'index': 'screenshot'})}
-                </div>
-            </div>
+            {self._generate_image_card(screenshot_img, is_small=False)}
         </div>
         """
     

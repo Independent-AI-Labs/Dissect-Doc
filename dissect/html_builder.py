@@ -279,6 +279,19 @@ class HTMLBuilder:
             </div>
         </div>
     </div>
+    <script>
+        function reinitializeAI() {
+            if (window.initializeAI) {
+                window.initializeAI();
+            }
+        }
+
+        const originalLoadMorePages = window.loadMorePages;
+        window.loadMorePages = function() {
+            originalLoadMorePages();
+            setTimeout(reinitializeAI, 500);
+        }
+    </script>
         """
         
         return content
@@ -370,12 +383,19 @@ class HTMLBuilder:
             </div>
             """
 
+        from PIL import Image
+        try:
+            with Image.open(self.output_dir / "images" / screenshot_filename) as img:
+                width, height = img.size
+        except FileNotFoundError:
+            width, height = 0, 0
+
         screenshot_img = {
             'filename': screenshot_filename,
             'page': page_num,
             'index': 'screenshot',
-            'width': 0,
-            'height': 0,
+            'width': width,
+            'height': height,
             'format': 'png',
             'size_bytes': 0,
             'hash': hashlib.md5(f"{screenshot_filename}{page_num}".encode()).hexdigest(),

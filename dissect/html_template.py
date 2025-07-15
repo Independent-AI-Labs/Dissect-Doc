@@ -371,25 +371,7 @@ class HTMLTemplate:
                     onclick="saveSettings()"
                     class="w-full bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors mb-2"
                 >
-                    Save Settings
-                </button>
-                <button 
-                    onclick="applySettingsToUI()"
-                    class="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors mb-2"
-                >
-                    Apply Now
-                </button>
-                <button 
-                    onclick="debugSettingsState()"
-                    class="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors mb-2"
-                >
-                    Debug Settings
-                </button>
-                <button 
-                    onclick="resetSettings()"
-                    class="w-full bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-md text-sm font-medium transition-colors"
-                >
-                    Reset to Defaults
+                    Save & Apply
                 </button>
             </div>
         </div>
@@ -655,11 +637,7 @@ function applySettingsToUI() {
     }
     
     // Apply small images setting
-    const showSmallCheck = document.getElementById('showSmallImages');
-    if (showSmallCheck && showSmallCheck.checked) {
-        console.log('Applying small images visibility');
-        toggleSmallImages();
-    }
+    applyImageSizeFilter();
     
     // Apply auto-load setting
     if (AUTO_LOAD_ENABLED) {
@@ -668,6 +646,37 @@ function applySettingsToUI() {
     
     // Update image size filter display
     updateImageSizeDisplay();
+}
+
+function applyImageSizeFilter() {
+    const showSmallCheck = document.getElementById('showSmallImages');
+    const isChecked = showSmallCheck ? showSmallCheck.checked : false;
+
+    document.querySelectorAll('.page-section').forEach(page => {
+        const regularImages = page.querySelectorAll('.regular-images .relative.group');
+        const smallImages = page.querySelectorAll('.small-images .relative.group');
+
+        regularImages.forEach(card => {
+            const img = card.querySelector('img');
+            if (img) {
+                const width = parseInt(img.parentElement.parentElement.querySelector('div:last-child div:last-child span').textContent.split('×')[0]);
+                if (width < MIN_IMAGE_SIZE) {
+                    card.style.display = isChecked ? 'block' : 'none';
+                } else {
+                    card.style.display = 'block';
+                }
+            }
+        });
+
+        smallImages.forEach(card => {
+            card.style.display = isChecked ? 'block' : 'none';
+        });
+
+        const smallImagesContainer = page.querySelector('.small-images');
+        if (smallImagesContainer) {
+            smallImagesContainer.style.display = isChecked ? 'block' : 'none';
+        }
+    });
 }
 
 function enableAIFeatures() {
@@ -819,6 +828,7 @@ function saveSettings() {
             }, 2000);
         }
         console.log('Settings saved successfully');
+        applySettingsToUI();
     } catch (error) {
         console.error('Error saving settings:', error);
     }
@@ -903,37 +913,6 @@ function toggleAutoLoad() {
     }
 }
 
-function toggleSmallImages() {
-    const checkbox = document.getElementById('showSmallImages');
-    const smallImageContainers = document.querySelectorAll('.small-images');
-    
-    if (checkbox && smallImageContainers) {
-        const isChecked = checkbox.checked;
-        console.log(`Toggling small images: ${isChecked ? 'show' : 'hide'}`);
-        
-        smallImageContainers.forEach(container => {
-            if (isChecked) {
-                container.classList.add('show');
-                container.style.display = 'block';
-            } else {
-                container.classList.remove('show');
-                container.style.display = 'none';
-            }
-        });
-        
-        // Save this setting immediately
-        const savedSettings = localStorage.getItem(STORAGE_KEY);
-        if (savedSettings) {
-            try {
-                const settings = JSON.parse(savedSettings);
-                settings.showSmallImages = isChecked;
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-            } catch (error) {
-                console.error('Error updating small images setting:', error);
-            }
-        }
-    }
-}
 
 // Lazy loading functions
 async function loadPagesData() {

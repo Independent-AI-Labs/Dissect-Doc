@@ -366,14 +366,6 @@ class HTMLTemplate:
                 <p class="text-xs text-gray-500 mt-1">Number of pages to load at once</p>
             </div>
             
-            <div class="pt-3 border-t border-gray-200">
-                <button 
-                    onclick="saveSettings()"
-                    class="w-full bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors mb-2"
-                >
-                    Save & Apply
-                </button>
-            </div>
         </div>
     </div>
         """
@@ -810,18 +802,6 @@ function saveSettings() {
         };
         localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
         
-        // Show feedback
-        const button = document.querySelector('button[onclick="saveSettings()"]');
-        if (button) {
-            button.textContent = 'Saved!';
-            button.classList.remove('bg-purple-600', 'hover:bg-purple-700');
-            button.classList.add('bg-green-600', 'hover:bg-green-700');
-            setTimeout(() => {
-                button.textContent = 'Save & Apply';
-                button.classList.remove('bg-green-600', 'hover:bg-green-700');
-                button.classList.add('bg-purple-600', 'hover:bg-purple-700');
-            }, 2000);
-        }
         console.log('Settings saved successfully');
 
         // Apply settings to the UI
@@ -885,7 +865,6 @@ function updateMinImageSize() {
         MIN_IMAGE_SIZE = parseInt(slider.value);
         valueDisplay.textContent = MIN_IMAGE_SIZE + 'px';
         applyImageSizeFilter();
-        saveSettings();
     }
 }
 
@@ -1074,7 +1053,7 @@ function generateImagesSection(regular_images, small_images) {
                             </svg>
                             <span class="text-sm font-medium text-yellow-800">Small Images & UI Elements</span>
                         </div>
-                        <p class="text-xs text-yellow-600 mt-1">These images have an area smaller than ${MIN_image_size}×${MIN_IMAGE_SIZE} pixels and likely contain UI elements, icons, or decorative graphics</p>
+                        <p class="text-xs text-yellow-600 mt-1">These images have an area smaller than ${MIN_IMAGE_SIZE}×${MIN_IMAGE_SIZE} pixels and likely contain UI elements, icons, or decorative graphics</p>
                     </div>
                     <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
             `;
@@ -1140,6 +1119,8 @@ function generateImageCard(img, isSmall, isScreenshot = false) {
                         data-image-id="${dataImageId}"
                         data-image-filename="${img.filename}"
                         data-image-hash="${img.hash || ''}"
+                        data-width="${img.width}"
+                        data-height="${img.height}"
                         loading="lazy"
                     >
                     <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-opacity duration-200"></div>

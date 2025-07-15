@@ -3,19 +3,19 @@ Enhanced HTML Builder Module
 Builds HTML reports with lazy loading and improved functionality
 """
 
-import json
 import hashlib
-from pathlib import Path
-from typing import Dict, List, Any, Optional, Set, Tuple
+import json
 import logging
+from pathlib import Path
+from typing import Dict, List, Any, Optional, Tuple
 
-from dissect.html_template import HTMLTemplate
+from html_template import HTMLTemplate
 
 
 class HTMLBuilder:
     """Builds HTML reports with enhanced features including lazy loading"""
-    
-    def __init__(self, extraction_result: Dict[str, Any], output_dir: Path, 
+
+    def __init__(self, extraction_result: Dict[str, Any], output_dir: Path,
                  filename: str, api_key: Optional[str] = None, min_image_size: int = 256):
         self.extraction_result = extraction_result
         self.output_dir = output_dir
@@ -23,37 +23,37 @@ class HTMLBuilder:
         self.api_key = api_key
         self.min_image_size = min_image_size
         self.logger = logging.getLogger(__name__)
-        
+
         # Process images for duplicates and filtering
         self.unique_images, self.duplicate_groups = self._process_duplicate_images()
         self.small_images, self.regular_images = self._filter_images_by_size()
-        
+
         # Calculate word and token counts
         self.doc_word_count = self._count_words(self.extraction_result['text'])
         self.doc_token_count = self._estimate_tokens(self.extraction_result['text'])
-        
+
         # Lazy loading configuration
         self.pages_per_chunk = 25
         self.total_pages = len(self.extraction_result['pages_data'])
-        
+
     def _process_duplicate_images(self) -> Tuple[List[Dict[str, Any]], Dict[str, List[Dict[str, Any]]]]:
         """Process images to detect duplicates by hash and pixel similarity"""
         unique_images = []
         duplicate_groups = {}
         seen_hashes = {}
         processed_images = []
-        
+
         for img in self.extraction_result['images']:
             if not img.get('filename'):
                 continue
-                
+
             # Calculate hash from image data or use provided hash
             img_hash = img.get('hash')
             if not img_hash:
                 # If no hash provided, create one from filename and size
                 img_hash = hashlib.md5(f"{img['filename']}{img.get('size_bytes', 0)}".encode()).hexdigest()
                 img['hash'] = img_hash
-            
+
             # First check for exact hash matches
             if img_hash in seen_hashes:
                 # This is a duplicate
@@ -73,50 +73,50 @@ class HTMLBuilder:
                         duplicate_groups[existing_hash].append(img)
                         similarity_found = True
                         break
-                
+
                 if not similarity_found:
                     # This is unique
                     seen_hashes[img_hash] = img
                     unique_images.append(img)
                     processed_images.append(img)
-        
+
         return unique_images, duplicate_groups
-    
+
     def _are_images_similar(self, img1: Dict[str, Any], img2: Dict[str, Any]) -> bool:
         """Check if two images are similar (99% pixel similarity)"""
         # Basic similarity check based on dimensions and file size
         # In a full implementation, this would load and compare actual pixel data
-        
+
         # If dimensions are very different, they're not similar
         w1, h1 = img1.get('width', 0), img1.get('height', 0)
         w2, h2 = img2.get('width', 0), img2.get('height', 0)
-        
+
         if w1 == 0 or h1 == 0 or w2 == 0 or h2 == 0:
             return False
-        
+
         # Check if dimensions are similar (within 5% tolerance)
         width_diff = abs(w1 - w2) / max(w1, w2)
         height_diff = abs(h1 - h2) / max(h1, h2)
-        
+
         if width_diff > 0.05 or height_diff > 0.05:
             return False
-        
+
         # Check if file sizes are similar (within 10% tolerance)
         size1 = img1.get('size_bytes', 0)
         size2 = img2.get('size_bytes', 0)
-        
+
         if size1 > 0 and size2 > 0:
             size_diff = abs(size1 - size2) / max(size1, size2)
             if size_diff > 0.10:
                 return False
-        
+
         # Check if formats are the same
         if img1.get('format') != img2.get('format'):
             return False
-        
+
         # If all basic checks pass, consider them similar
         return True
-        
+
     def _filter_images_by_size(self) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
         """Filter images by size - separate small UI elements from regular images"""
         small_images = []
@@ -126,50 +126,50 @@ class HTMLBuilder:
         for img in self.extraction_result['images']:
             if not img.get('filename'):
                 continue
-                
+
             width = img.get('width', 0)
             height = img.get('height', 0)
             area = width * height
-            
+
             # Images with an area smaller than min_area are considered small/UI elements
             if area < min_area:
                 small_images.append(img)
             else:
                 regular_images.append(img)
-        
+
         return small_images, regular_images
-    
+
     def _count_words(self, text: str) -> int:
         """Count words in text"""
         if not text:
             return 0
         return len(text.split())
-    
+
     def _estimate_tokens(self, text: str) -> int:
         """Estimate token count (rough approximation: 1 token ≈ 4 characters)"""
         if not text:
             return 0
         return len(text) // 4
-        
+
     def generate_html(self) -> str:
         """Generate the complete HTML report with lazy loading"""
         self.logger.info("Starting HTML report generation...")
-        
+
         try:
             # Build all components
             self.logger.info("Generating modal template...")
             modal = HTMLTemplate.get_modal_template()
-            
+
             self.logger.info("Generating settings template...")
             settings = HTMLTemplate.get_settings_template()
-            
+
             self.logger.info("Generating header template...")
             header = HTMLTemplate.get_header_template(
-                self.filename, 
-                self.extraction_result['pages'], 
+                self.filename,
+                self.extraction_result['pages'],
                 len(self.unique_images)
             )
-            
+
             self.logger.info("Generating stats template...")
             stats = HTMLTemplate.get_stats_template(
                 self.extraction_result['pages'],
@@ -181,16 +181,16 @@ class HTMLBuilder:
                 len(self.extraction_result['images']) - len(self.unique_images),
                 self.min_image_size
             )
-            
+
             self.logger.info("Generating lazy-loaded content...")
             content = self._generate_lazy_content()
-            
+
             self.logger.info("Generating footer template...")
             footer = HTMLTemplate.get_footer_template()
-            
+
             self.logger.info("Getting main template...")
             main_template = HTMLTemplate.get_main_template(self.filename)
-            
+
             self.logger.info("Replacing template placeholders...")
             # Use simple string replacement with comment-style placeholders to avoid CSS/JS conflicts
             html_content = main_template.replace('<!--MODAL_PLACEHOLDER-->', modal)
@@ -199,31 +199,31 @@ class HTMLBuilder:
             html_content = html_content.replace('<!--STATS_PLACEHOLDER-->', stats)
             html_content = html_content.replace('<!--CONTENT_PLACEHOLDER-->', content)
             html_content = html_content.replace('<!--FOOTER_PLACEHOLDER-->', footer)
-            
+
             # Generate JSON data for lazy loading
             self._generate_pages_json()
-            
+
             # Save HTML file
             html_file = self.output_dir / f"{self.filename}_report.html"
             self.logger.info(f"Writing HTML file to: {html_file}")
-            
+
             with open(html_file, 'w', encoding='utf-8') as f:
                 f.write(html_content)
-            
+
             self.logger.info("HTML report generation completed successfully!")
             return str(html_file)
-            
+
         except Exception as e:
             self.logger.error(f"HTML generation failed at step: {str(e)}")
             self.logger.error(f"Error type: {type(e).__name__}")
             import traceback
             self.logger.error(f"Traceback: {traceback.format_exc()}")
             raise
-    
+
     def _generate_pages_json(self):
         """Generate JSON data for lazy loading pages"""
         pages_data = {}
-        
+
         for i, page_data in enumerate(self.extraction_result['pages_data']):
             pages_data[str(page_data['page_number'])] = {
                 'page_number': page_data['page_number'],
@@ -233,12 +233,12 @@ class HTMLBuilder:
                 'images': [img for img in self.extraction_result['images'] if img['page'] == page_data['page_number']],
                 'screenshot': page_data.get('screenshot')
             }
-        
+
         # Save to JSON file
         json_file = self.output_dir / f"{self.filename}_pages.json"
         with open(json_file, 'w', encoding='utf-8') as f:
             json.dump(pages_data, f, indent=2, ensure_ascii=False)
-    
+
     def _generate_lazy_content(self) -> str:
         """Generate main content section with lazy loading structure"""
         content = f"""
@@ -282,34 +282,34 @@ class HTMLBuilder:
         </div>
     </div>
         """
-        
+
         return content
-    
+
     def _generate_page_chunk(self, start_idx: int, end_idx: int) -> str:
         """Generate a chunk of pages"""
         chunk_html = ""
-        
+
         for i in range(start_idx, min(end_idx, self.total_pages)):
             page_data = self.extraction_result['pages_data'][i]
             chunk_html += self._generate_page_section(page_data)
-        
+
         return chunk_html
-    
+
     def _generate_page_section(self, page_data: Dict[str, Any]) -> str:
         """Generate a single page section"""
         page_num = page_data['page_number']
         page_images = [img for img in self.extraction_result['images'] if img['page'] == page_num]
-        
+
         # Calculate page-specific stats
         page_text = page_data.get('text', '')
         page_word_count = self._count_words(page_text)
         page_token_count = self._estimate_tokens(page_text)
-        
+
         # Filter images by size
         min_area = self.min_image_size * self.min_image_size
         regular_page_images = [img for img in page_images if img.get('width', 0) * img.get('height', 0) >= min_area]
         small_page_images = [img for img in page_images if img.get('width', 0) * img.get('height', 0) < min_area]
-        
+
         screenshot_filename = page_data.get('screenshot')
 
         return f"""
@@ -379,9 +379,9 @@ class HTMLBuilder:
             'page': page_num,
             'index': 'screenshot',
             'width': 1024,  # Default width, can be adjusted
-            'height': 768, # Default height
+            'height': 768,  # Default height
             'format': 'PNG',
-            'size_bytes': 0, # Not available, can be omitted
+            'size_bytes': 0,  # Not available, can be omitted
             'hash': f"screenshot_{page_num}"
         }
 
@@ -396,7 +396,7 @@ class HTMLBuilder:
             {self._generate_image_card(screenshot_img_obj, is_small=False, is_screenshot=True)}
         </div>
         """
-    
+
     def _generate_images_section(self, regular_images: List[Dict[str, Any]], small_images: List[Dict[str, Any]]) -> str:
         """Generate images section for a page with size filtering"""
         content = f"""
@@ -408,7 +408,7 @@ class HTMLBuilder:
                 Images ({len(regular_images)} regular{f', {len(small_images)} small' if small_images else ''})
             </h3>
         """
-        
+
         if not regular_images and not small_images:
             content += """
             <div class="bg-gray-50 rounded-lg p-8 text-center">
@@ -429,7 +429,7 @@ class HTMLBuilder:
                 content += """
                 </div>
                 """
-            
+
             # Small images (hidden by default)
             if small_images:
                 content += f"""
@@ -451,13 +451,13 @@ class HTMLBuilder:
                     </div>
                 </div>
                 """
-        
+
         content += """
         </div>
         """
-        
+
         return content
-    
+
     def _generate_image_card(self, img: Dict[str, Any], is_small: bool = False, is_screenshot: bool = False) -> str:
         """Generate a single image card"""
         if img.get('filename'):
@@ -465,7 +465,7 @@ class HTMLBuilder:
             is_duplicate = False
             is_similar = False
             duplicate_count = 0
-            
+
             if not is_screenshot and img.get('hash'):
                 for img_hash, duplicates in self.duplicate_groups.items():
                     if img['hash'] == img_hash:
@@ -476,7 +476,7 @@ class HTMLBuilder:
                         is_similar = True
                         duplicate_count = len(duplicates)
                         break
-            
+
             # Different styling for small images
             if is_small:
                 card_class = "bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow"
@@ -508,7 +508,7 @@ class HTMLBuilder:
                         UNIQUE
                     </div>
                 """
-            
+
             alt_text = f"Screenshot of Page {img['page']}" if is_screenshot else f"Page {img['page']} Image {img['index']}"
             data_image_id = f"page_{img['page']}_screenshot" if is_screenshot else f"{img['page']}_{img['index']}"
 
@@ -559,7 +559,7 @@ class HTMLBuilder:
                     </div>
                 </div>
             """
-    
+
     def _generate_ai_button(self) -> str:
         """Generate clickable AI analysis button"""
         return """
@@ -575,11 +575,11 @@ class HTMLBuilder:
                 <span>AI</span>
             </button>
         """
-    
+
     def _generate_ai_analysis_section(self, img: Dict[str, Any]) -> str:
         """Generate AI analysis section in the card"""
         image_id = f"page_{img['page']}_screenshot" if img['index'] == 'screenshot' else f"{img['page']}_{img['index']}"
-        
+
         return f"""
             <div class="mt-3 pt-3 border-t border-gray-100 ai-analysis-section" style="display: none;">
                 <div class="flex items-center justify-between mb-2">
@@ -607,7 +607,7 @@ class HTMLBuilder:
                 </div>
             </div>
         """
-    
+
     def _format_bytes(self, bytes_size: int) -> str:
         """Format bytes to human readable format"""
         for unit in ['B', 'KB', 'MB', 'GB']:

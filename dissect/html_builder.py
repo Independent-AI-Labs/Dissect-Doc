@@ -386,9 +386,12 @@ class HTMLBuilder:
                         class="w-full h-auto object-contain clickable-image"
                         onclick="openModal('images/{screenshot_filename}')"
                         data-image-id="page_{page_num}_screenshot"
+                        data-image-filename="{screenshot_filename}"
+                        data-image-hash=""
+                        data-width=""
                     >
                     {self._generate_ai_button()}
-                    {self._generate_ai_analysis_section({{'page': page_num, 'index': 'screenshot'}})}
+                    {self._generate_ai_analysis_section({'page': page_num, 'index': 'screenshot'})}
                 </div>
             </div>
         </div>

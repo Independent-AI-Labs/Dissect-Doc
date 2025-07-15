@@ -160,7 +160,8 @@ class PDFExtractor:
         page_data = {
             'page_number': page_num,
             'text': '',
-            'images': []
+            'images': [],
+            'screenshot': None
         }
         
         # Extract text
@@ -229,6 +230,19 @@ class PDFExtractor:
         except Exception as e:
             self.logger.warning(f"Failed to extract image {img_index} from page {page_num}: {e}")
             return {
+
+    def _extract_page_screenshot(self, page: fitz.Page, page_num: int, images_dir: Path) -> Optional[str]:
+        """Extract a screenshot of the page and save it."""
+        try:
+            pix = page.get_pixmap()
+            screenshot_filename = f"page_{page_num:03d}_screenshot.png"
+            screenshot_path = images_dir / screenshot_filename
+            pix.save(str(screenshot_path))
+            pix = None  # Free up memory
+            return screenshot_filename
+        except Exception as e:
+            self.logger.error(f"Failed to generate screenshot for page {page_num}: {e}")
+            return None
                 'page': page_num,
                 'index': img_index,
                 'filename': None,

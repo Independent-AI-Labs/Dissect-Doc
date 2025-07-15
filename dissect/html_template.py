@@ -399,12 +399,6 @@ class HTMLTemplate:
                         </span>
                     </p>
                 </div>
-                <div class="flex items-center space-x-4">
-                    <div class="text-right">
-                        <div class="text-sm text-gray-500">Enhanced with</div>
-                        <div class="text-lg font-semibold text-purple-600">AI Analysis & Lazy Loading</div>
-                    </div>
-                </div>
             </div>
         </div>
     </div>
@@ -909,7 +903,13 @@ function toggleAutoLoad() {
                 intersectionObserver.disconnect();
             }
         }
+        saveSettings();
     }
+}
+
+function toggleSmallImages() {
+    applyImageSizeFilter();
+    saveSettings();
 }
 
 

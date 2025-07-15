@@ -659,7 +659,7 @@ function applyImageSizeFilter() {
         regularImages.forEach(card => {
             const img = card.querySelector('img');
             if (img) {
-                const width = parseInt(img.parentElement.parentElement.querySelector('div:last-child div:last-child span').textContent.split('×')[0]);
+                const width = parseInt(img.dataset.width);
                 if (width < MIN_IMAGE_SIZE) {
                     card.style.display = isChecked ? 'block' : 'none';
                 } else {

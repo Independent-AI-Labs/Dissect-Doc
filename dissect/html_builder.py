@@ -388,6 +388,7 @@ class HTMLBuilder:
                         data-image-id="page_{page_num}_screenshot"
                     >
                     {self._generate_ai_button()}
+                    {self._generate_ai_analysis_section({{'page': page_num, 'index': 'screenshot'}})}
                 </div>
             </div>
         </div>
@@ -514,6 +515,7 @@ class HTMLBuilder:
                                 data-image-id="{img['page']}_{img['index']}"
                                 data-image-filename="{img['filename']}"
                                 data-image-hash="{img.get('hash', '')}"
+                                data-width="{img['width']}"
                                 loading="lazy"
                             >
                             <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-opacity duration-200"></div>

@@ -648,33 +648,29 @@ function applyImageSizeFilter() {
     const minArea = MIN_IMAGE_SIZE * MIN_IMAGE_SIZE;
 
     document.querySelectorAll('.page-section').forEach(page => {
-        const allImageCards = page.querySelectorAll('.relative.group');
+        const regularImagesContainer = page.querySelector('.regular-images');
+        if (regularImagesContainer) {
+            const regularImages = regularImagesContainer.querySelectorAll('.relative.group');
+            regularImages.forEach(card => {
+                card.style.display = 'block';
+            });
+        }
 
-        allImageCards.forEach(card => {
-            const img = card.querySelector('img');
-            if (img) {
-                const width = parseInt(img.dataset.width) || 0;
-                const height = parseInt(img.dataset.height) || 0;
-                const area = width * height;
-
-                const isSmall = area < minArea;
-
-                if (isSmall) {
-                    // This is a small image, hide or show based on the checkbox
-                    card.style.display = isChecked ? 'block' : 'none';
-                } else {
-                    // This is a regular image, always show
-                    card.style.display = 'block';
-                }
-            }
-        });
-
-        // Also toggle the visibility of the "Small Images & UI Elements" container
         const smallImagesContainer = page.querySelector('.small-images');
         if (smallImagesContainer) {
-            const smallImageCards = smallImagesContainer.querySelectorAll('.relative.group');
-            // Show the container if the checkbox is checked and there are small images
-            smallImagesContainer.style.display = (isChecked && smallImageCards.length > 0) ? 'block' : 'none';
+            const smallImages = smallImagesContainer.querySelectorAll('.relative.group');
+            smallImages.forEach(card => {
+                const img = card.querySelector('img');
+                if (img) {
+                    const width = parseInt(img.dataset.width) || 0;
+                    const height = parseInt(img.dataset.height) || 0;
+                    const area = width * height;
+                    if (area < minArea) {
+                        card.style.display = isChecked ? 'block' : 'none';
+                    }
+                }
+            });
+            smallImagesContainer.style.display = isChecked ? 'block' : 'none';
         }
     });
 }
@@ -1272,7 +1268,11 @@ async function loadMorePages() {
 }
 
 function setupIntersectionObserver() {
-    if (!AUTO_LOAD_ENABLED || intersectionObserver) return;
+    if (intersectionObserver) {
+        intersectionObserver.disconnect();
+    }
+
+    if (!AUTO_LOAD_ENABLED) return;
     
     intersectionObserver = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
@@ -1281,7 +1281,7 @@ function setupIntersectionObserver() {
             }
         });
     }, {
-        rootMargin: '100px'
+        rootMargin: '200px'
     });
     
     // Observe the load more container

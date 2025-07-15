@@ -310,7 +310,7 @@ class HTMLBuilder:
         regular_page_images = [img for img in page_images if img.get('width', 0) * img.get('height', 0) >= min_area]
         small_page_images = [img for img in page_images if img.get('width', 0) * img.get('height', 0) < min_area]
 
-        screenshot_filename = page_data.get('screenshot')
+        screenshot = page_data.get('screenshot')
 
         return f"""
         <div class="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden page-section" data-page="{page_num}">
@@ -338,7 +338,7 @@ class HTMLBuilder:
             <div class="p-6">
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     <div class="lg:col-span-1">
-                        {self._generate_screenshot_section(screenshot_filename, page_num)}
+                        {self._generate_screenshot_section(screenshot, page_num)}
                     </div>
                     <div class="lg:col-span-2 grid grid-cols-1 gap-8">
                         <div class="space-y-6">
@@ -364,26 +364,17 @@ class HTMLBuilder:
         </div>
         """
 
-    def _generate_screenshot_section(self, screenshot_filename: Optional[str], page_num: int) -> str:
+    def _generate_screenshot_section(self, screenshot: Optional[Dict[str, Any]], page_num: int) -> str:
         """Generate the screenshot section for a page"""
-        if not screenshot_filename:
+        if not screenshot or not screenshot.get('filename'):
             return """
             <div class="bg-gray-50 rounded-lg p-8 text-center">
                 <p class="text-gray-500">No screenshot available</p>
             </div>
             """
 
-        # Create a mock image object for the screenshot to reuse the card generation logic
-        screenshot_img_obj = {
-            'filename': screenshot_filename,
-            'page': page_num,
-            'index': 'screenshot',
-            'width': 1024,  # Default width, can be adjusted
-            'height': 768,  # Default height
-            'format': 'PNG',
-            'size_bytes': 0,  # Not available, can be omitted
-            'hash': f"screenshot_{page_num}"
-        }
+        # Add an 'index' for compatibility with the card generator
+        screenshot['index'] = 'screenshot'
 
         return f"""
         <div>
@@ -393,7 +384,7 @@ class HTMLBuilder:
                 </svg>
                 Page Screenshot
             </h3>
-            {self._generate_image_card(screenshot_img_obj, is_small=False, is_screenshot=True)}
+            {self._generate_image_card(screenshot, is_small=False, is_screenshot=True)}
         </div>
         """
 

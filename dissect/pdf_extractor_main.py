@@ -240,17 +240,36 @@ class PDFExtractor:
                 'error': str(e)
             }
 
-    def _extract_page_screenshot(self, page: fitz.Page, page_num: int, images_dir: Path) -> Optional[str]:
-        """Extract a screenshot of the page and save it."""
+    def _extract_page_screenshot(self, page: fitz.Page, page_num: int, images_dir: Path) -> Optional[Dict[str, Any]]:
+        """
+        Extract a screenshot of the page, save it, and return its metadata.
+        """
         try:
-            # Increase resolution by a factor of 2
+            # Increase resolution for better quality
             matrix = fitz.Matrix(2, 2)
             pix = page.get_pixmap(matrix=matrix)
+
             screenshot_filename = f"page_{page_num:03d}_screenshot.png"
             screenshot_path = images_dir / screenshot_filename
-            pix.save(str(screenshot_path))
-            pix = None  # Free up memory
-            return screenshot_filename
+
+            # Save to bytes to get size
+            img_data = pix.tobytes("png")
+
+            with open(screenshot_path, "wb") as f:
+                f.write(img_data)
+
+            screenshot_info = {
+                'filename': screenshot_filename,
+                'width': pix.width,
+                'height': pix.height,
+                'size_bytes': len(img_data),
+                'format': 'png',
+                'page': page_num
+            }
+
+            pix = None # free memory
+            return screenshot_info
+
         except Exception as e:
             self.logger.error(f"Failed to generate screenshot for page {page_num}: {e}")
             return None

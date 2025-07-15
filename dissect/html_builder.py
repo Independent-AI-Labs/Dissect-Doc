@@ -121,16 +121,18 @@ class HTMLBuilder:
         """Filter images by size - separate small UI elements from regular images"""
         small_images = []
         regular_images = []
-        
+        min_area = self.min_image_size * self.min_image_size
+
         for img in self.extraction_result['images']:
             if not img.get('filename'):
                 continue
                 
             width = img.get('width', 0)
             height = img.get('height', 0)
+            area = width * height
             
-            # Images smaller than min_image_size are considered small/UI elements
-            if width < self.min_image_size or height < self.min_image_size:
+            # Images with an area smaller than min_area are considered small/UI elements
+            if area < min_area:
                 small_images.append(img)
             else:
                 regular_images.append(img)
@@ -438,7 +440,7 @@ class HTMLBuilder:
                             </svg>
                             <span class="text-sm font-medium text-yellow-800">Small Images & UI Elements</span>
                         </div>
-                        <p class="text-xs text-yellow-600 mt-1">These images are smaller than {self.min_image_size}×{self.min_image_size} pixels and likely contain UI elements, icons, or decorative graphics</p>
+                        <p class="text-xs text-yellow-600 mt-1">These images have an area smaller than {self.min_image_size}×{self.min_image_size} pixels and likely contain UI elements, icons, or decorative graphics</p>
                     </div>
                     <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
                 """

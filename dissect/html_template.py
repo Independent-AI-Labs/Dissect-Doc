@@ -543,7 +543,7 @@ class HTMLTemplate:
                     </label>
                 </div>
                 <div class="text-sm text-gray-500">
-                    Small images are &lt;{min_image_size}×{min_image_size} pixels
+                    Small images have an area less than {min_image_size}×{min_image_size} pixels
                 </div>
             </div>
         </div>
@@ -651,25 +651,24 @@ function applySettingsToUI() {
 function applyImageSizeFilter() {
     const showSmallCheck = document.getElementById('showSmallImages');
     const isChecked = showSmallCheck ? showSmallCheck.checked : false;
+    const minArea = MIN_IMAGE_SIZE * MIN_IMAGE_SIZE;
 
     document.querySelectorAll('.page-section').forEach(page => {
-        const regularImages = page.querySelectorAll('.regular-images .relative.group');
-        const smallImages = page.querySelectorAll('.small-images .relative.group');
+        const allImages = page.querySelectorAll('.relative.group');
 
-        regularImages.forEach(card => {
+        allImages.forEach(card => {
             const img = card.querySelector('img');
             if (img) {
                 const width = parseInt(img.dataset.width);
-                if (width < MIN_IMAGE_SIZE) {
+                const height = parseInt(img.dataset.height);
+                const area = width * height;
+
+                if (area < minArea) {
                     card.style.display = isChecked ? 'block' : 'none';
                 } else {
                     card.style.display = 'block';
                 }
             }
-        });
-
-        smallImages.forEach(card => {
-            card.style.display = isChecked ? 'block' : 'none';
         });
 
         const smallImagesContainer = page.querySelector('.small-images');
@@ -793,8 +792,8 @@ function updateImageSizeDisplay() {
     // Update the filter description
     const filterDescriptions = document.querySelectorAll('.text-sm.text-gray-500');
     filterDescriptions.forEach(desc => {
-        if (desc.textContent.includes('Small images are')) {
-            desc.textContent = `Small images are <${MIN_IMAGE_SIZE}×${MIN_IMAGE_SIZE} pixels`;
+        if (desc.textContent.includes('Small images have an area less than')) {
+            desc.textContent = `Small images have an area less than ${MIN_IMAGE_SIZE}×${MIN_IMAGE_SIZE} pixels`;
         }
     });
     
@@ -935,11 +934,12 @@ function renderPageFromData(pageNumber) {
     if (!pageData) return '';
     
     const page_images = pageData.images || [];
+    const minArea = MIN_IMAGE_SIZE * MIN_IMAGE_SIZE;
     const regular_page_images = page_images.filter(img => 
-        (img.width || 0) >= MIN_IMAGE_SIZE && (img.height || 0) >= MIN_IMAGE_SIZE
+        (img.width || 0) * (img.height || 0) >= minArea
     );
     const small_page_images = page_images.filter(img => 
-        (img.width || 0) < MIN_IMAGE_SIZE || (img.height || 0) < MIN_IMAGE_SIZE
+        (img.width || 0) * (img.height || 0) < minArea
     );
     const screenshot_filename = pageData.screenshot;
     
@@ -1068,7 +1068,7 @@ function generateImagesSection(regular_images, small_images) {
                             </svg>
                             <span class="text-sm font-medium text-yellow-800">Small Images & UI Elements</span>
                         </div>
-                        <p class="text-xs text-yellow-600 mt-1">These images are smaller than ${MIN_IMAGE_SIZE}×${MIN_IMAGE_SIZE} pixels and likely contain UI elements, icons, or decorative graphics</p>
+                        <p class="text-xs text-yellow-600 mt-1">These images have an area smaller than ${MIN_image_size}×${MIN_IMAGE_SIZE} pixels and likely contain UI elements, icons, or decorative graphics</p>
                     </div>
                     <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
             `;

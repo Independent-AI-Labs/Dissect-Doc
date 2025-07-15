@@ -399,12 +399,6 @@ class HTMLTemplate:
                         </span>
                     </p>
                 </div>
-                <div class="flex items-center space-x-4">
-                    <div class="text-right">
-                        <div class="text-sm text-gray-500">Enhanced with</div>
-                        <div class="text-lg font-semibold text-purple-600">AI Analysis & Lazy Loading</div>
-                    </div>
-                </div>
             </div>
         </div>
     </div>
@@ -543,7 +537,7 @@ class HTMLTemplate:
                     </label>
                 </div>
                 <div class="text-sm text-gray-500">
-                    Small images are &lt;{min_image_size}×{min_image_size} pixels
+                    Small images have an area less than {min_image_size}×{min_image_size} pixels
                 </div>
             </div>
         </div>
@@ -651,29 +645,31 @@ function applySettingsToUI() {
 function applyImageSizeFilter() {
     const showSmallCheck = document.getElementById('showSmallImages');
     const isChecked = showSmallCheck ? showSmallCheck.checked : false;
+    const minArea = MIN_IMAGE_SIZE * MIN_IMAGE_SIZE;
 
     document.querySelectorAll('.page-section').forEach(page => {
-        const regularImages = page.querySelectorAll('.regular-images .relative.group');
-        const smallImages = page.querySelectorAll('.small-images .relative.group');
-
-        regularImages.forEach(card => {
-            const img = card.querySelector('img');
-            if (img) {
-                const width = parseInt(img.dataset.width);
-                if (width < MIN_IMAGE_SIZE) {
-                    card.style.display = isChecked ? 'block' : 'none';
-                } else {
-                    card.style.display = 'block';
-                }
-            }
-        });
-
-        smallImages.forEach(card => {
-            card.style.display = isChecked ? 'block' : 'none';
-        });
+        const regularImagesContainer = page.querySelector('.regular-images');
+        if (regularImagesContainer) {
+            const regularImages = regularImagesContainer.querySelectorAll('.relative.group');
+            regularImages.forEach(card => {
+                card.style.display = 'block';
+            });
+        }
 
         const smallImagesContainer = page.querySelector('.small-images');
         if (smallImagesContainer) {
+            const smallImages = smallImagesContainer.querySelectorAll('.relative.group');
+            smallImages.forEach(card => {
+                const img = card.querySelector('img');
+                if (img) {
+                    const width = parseInt(img.dataset.width) || 0;
+                    const height = parseInt(img.dataset.height) || 0;
+                    const area = width * height;
+                    if (area < minArea) {
+                        card.style.display = isChecked ? 'block' : 'none';
+                    }
+                }
+            });
             smallImagesContainer.style.display = isChecked ? 'block' : 'none';
         }
     });
@@ -793,8 +789,8 @@ function updateImageSizeDisplay() {
     // Update the filter description
     const filterDescriptions = document.querySelectorAll('.text-sm.text-gray-500');
     filterDescriptions.forEach(desc => {
-        if (desc.textContent.includes('Small images are')) {
-            desc.textContent = `Small images are <${MIN_IMAGE_SIZE}×${MIN_IMAGE_SIZE} pixels`;
+        if (desc.textContent.includes('Small images have an area less than')) {
+            desc.textContent = `Small images have an area less than ${MIN_IMAGE_SIZE}×${MIN_IMAGE_SIZE} pixels`;
         }
     });
     
@@ -817,17 +813,18 @@ function saveSettings() {
         // Show feedback
         const button = document.querySelector('button[onclick="saveSettings()"]');
         if (button) {
-            const originalText = button.textContent;
             button.textContent = 'Saved!';
             button.classList.remove('bg-purple-600', 'hover:bg-purple-700');
             button.classList.add('bg-green-600', 'hover:bg-green-700');
             setTimeout(() => {
-                button.textContent = originalText;
+                button.textContent = 'Save & Apply';
                 button.classList.remove('bg-green-600', 'hover:bg-green-700');
                 button.classList.add('bg-purple-600', 'hover:bg-purple-700');
             }, 2000);
         }
         console.log('Settings saved successfully');
+
+        // Apply settings to the UI
         applySettingsToUI();
     } catch (error) {
         console.error('Error saving settings:', error);
@@ -887,6 +884,8 @@ function updateMinImageSize() {
     if (slider && valueDisplay) {
         MIN_IMAGE_SIZE = parseInt(slider.value);
         valueDisplay.textContent = MIN_IMAGE_SIZE + 'px';
+        applyImageSizeFilter();
+        saveSettings();
     }
 }
 
@@ -910,7 +909,13 @@ function toggleAutoLoad() {
                 intersectionObserver.disconnect();
             }
         }
+        saveSettings();
     }
+}
+
+function toggleSmallImages() {
+    applyImageSizeFilter();
+    saveSettings();
 }
 
 
@@ -935,11 +940,12 @@ function renderPageFromData(pageNumber) {
     if (!pageData) return '';
     
     const page_images = pageData.images || [];
+    const minArea = MIN_IMAGE_SIZE * MIN_IMAGE_SIZE;
     const regular_page_images = page_images.filter(img => 
-        (img.width || 0) >= MIN_IMAGE_SIZE && (img.height || 0) >= MIN_IMAGE_SIZE
+        (img.width || 0) * (img.height || 0) >= minArea
     );
     const small_page_images = page_images.filter(img => 
-        (img.width || 0) < MIN_IMAGE_SIZE || (img.height || 0) < MIN_IMAGE_SIZE
+        (img.width || 0) * (img.height || 0) < minArea
     );
     const screenshot_filename = pageData.screenshot;
     
@@ -1005,7 +1011,16 @@ function generateScreenshotSection(screenshot_filename, page_num) {
         `;
     }
 
-    const showAI = API_KEY && API_KEY.trim() !== '';
+    const screenshot_img_obj = {
+        filename: screenshot_filename,
+        page: page_num,
+        index: 'screenshot',
+        width: 1024,
+        height: 768,
+        format: 'PNG',
+        size_bytes: 0,
+        hash: `screenshot_${page_num}`
+    };
 
     return `
         <div>
@@ -1015,28 +1030,7 @@ function generateScreenshotSection(screenshot_filename, page_num) {
                 </svg>
                 Page Screenshot
             </h3>
-            <div class="relative group">
-                <div class="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-                    <img
-                        src="images/${screenshot_filename}"
-                        alt="Screenshot of Page ${page_num}"
-                        class="w-full h-auto object-contain clickable-image"
-                        onclick="openModal('images/${screenshot_filename}')"
-                        data-image-id="page_${page_num}_screenshot"
-                    >
-                    ${showAI ? `
-                    <button
-                        class="absolute top-2 right-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white px-3 py-1 rounded-full text-xs font-semibold opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center space-x-1 cursor-pointer shadow-lg ai-analysis-button"
-                        onclick="analyzeImageFromButton(this, event)"
-                        title="Click for AI analysis"
-                    >
-                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                        </svg>
-                        <span>AI</span>
-                    </button>` : ''}
-                </div>
-            </div>
+            ${generateImageCard(screenshot_img_obj, false, true)}
         </div>
     `;
 }
@@ -1080,7 +1074,7 @@ function generateImagesSection(regular_images, small_images) {
                             </svg>
                             <span class="text-sm font-medium text-yellow-800">Small Images & UI Elements</span>
                         </div>
-                        <p class="text-xs text-yellow-600 mt-1">These images are smaller than ${MIN_IMAGE_SIZE}×${MIN_IMAGE_SIZE} pixels and likely contain UI elements, icons, or decorative graphics</p>
+                        <p class="text-xs text-yellow-600 mt-1">These images have an area smaller than ${MIN_image_size}×${MIN_IMAGE_SIZE} pixels and likely contain UI elements, icons, or decorative graphics</p>
                     </div>
                     <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
             `;
@@ -1098,7 +1092,7 @@ function generateImagesSection(regular_images, small_images) {
     return content;
 }
 
-function generateImageCard(img, isSmall) {
+function generateImageCard(img, isSmall, isScreenshot = false) {
     if (!img.filename) {
         return `
             <div class="bg-red-50 border border-red-200 rounded-lg p-4">
@@ -1115,7 +1109,7 @@ function generateImageCard(img, isSmall) {
     const cardClass = "bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow";
     const imageClass = isSmall ? 
         "w-full h-20 object-contain clickable-image hover:scale-105 transition-transform duration-200" :
-        "w-full h-48 object-contain clickable-image hover:scale-105 transition-transform duration-200";
+        isScreenshot ? "w-full h-auto object-contain clickable-image" : "w-full h-48 object-contain clickable-image hover:scale-105 transition-transform duration-200";
     const paddingClass = isSmall ? "p-2" : "p-3";
     
     const fileSize = formatBytes(img.size_bytes || 0);
@@ -1124,21 +1118,32 @@ function generateImageCard(img, isSmall) {
     // Check if AI features should be shown
     const showAI = API_KEY && API_KEY.trim() !== '' && !isSmall;
     
+    // Set up indicators (only for non-screenshots)
+    let indicator = '';
+    if (!isScreenshot) {
+        // In a full implementation, you might pass duplicate info from the backend
+        // For now, we'll just show "UNIQUE" as a placeholder
+        indicator = '<div class="unique-indicator">UNIQUE</div>';
+    }
+
+    const altText = isScreenshot ? `Screenshot of Page ${img.page}` : `Page ${img.page} Image ${img.index}`;
+    const dataImageId = isScreenshot ? `page_${img.page}_screenshot` : `${img.page}_${img.index}`;
+
     return `
         <div class="relative group">
             <div class="${cardClass}">
-                <div class="aspect-w-16 aspect-h-9 bg-gray-100 relative" onclick="openModal('${img.filename}', '${img.page}', '${img.index}', '${img.width}', '${img.height}', '${img.format || 'unknown'}', '${fileSize}', '${hashShort}')">
+                <div class="aspect-w-16 aspect-h-9 bg-gray-100 relative" onclick="openModal('images/${img.filename}', '${img.page}', '${img.index}', '${img.width}', '${img.height}', '${img.format || 'unknown'}', '${fileSize}', '${hashShort}')">
                     <img 
                         src="images/${img.filename}" 
-                        alt="Page ${img.page} Image ${img.index}"
+                        alt="${altText}"
                         class="${imageClass}"
-                        data-image-id="${img.page}_${img.index}"
+                        data-image-id="${dataImageId}"
                         data-image-filename="${img.filename}"
                         data-image-hash="${img.hash || ''}"
                         loading="lazy"
                     >
                     <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-opacity duration-200"></div>
-                    <div class="unique-indicator">UNIQUE</div>
+                    ${indicator}
                     
                     ${showAI ? `
                     <button 
@@ -1158,7 +1163,7 @@ function generateImageCard(img, isSmall) {
                 </div>
                 <div class="${paddingClass}">
                     <div class="flex items-center justify-between text-xs text-gray-600">
-                        <span class="font-medium">Image ${img.index}</span>
+                        <span class="font-medium">${isScreenshot ? 'Screenshot' : `Image ${img.index}`}</span>
                         <span class="bg-gray-100 px-1 py-0.5 rounded text-xs">${(img.format || 'unknown').toUpperCase()}</span>
                     </div>
                     ${!isSmall ? `<div class="mt-1 text-xs text-gray-500"><span>${img.width} × ${img.height}</span></div>` : ''}
@@ -1170,7 +1175,7 @@ function generateImageCard(img, isSmall) {
 }
 
 function generateAIAnalysisSection(img) {
-    const imageId = `${img.page}_${img.index}`;
+    const imageId = img.index === 'screenshot' ? `page_${img.page}_screenshot` : `${img.page}_${img.index}`;
     
     return `
         <div class="mt-3 pt-3 border-t border-gray-100 ai-analysis-section">
@@ -1263,7 +1268,11 @@ async function loadMorePages() {
 }
 
 function setupIntersectionObserver() {
-    if (!AUTO_LOAD_ENABLED || intersectionObserver) return;
+    if (intersectionObserver) {
+        intersectionObserver.disconnect();
+    }
+
+    if (!AUTO_LOAD_ENABLED) return;
     
     intersectionObserver = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
@@ -1272,7 +1281,7 @@ function setupIntersectionObserver() {
             }
         });
     }, {
-        rootMargin: '100px'
+        rootMargin: '200px'
     });
     
     // Observe the load more container

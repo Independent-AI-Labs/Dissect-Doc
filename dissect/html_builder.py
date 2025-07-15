@@ -384,7 +384,7 @@ class HTMLBuilder:
                         src="images/{screenshot_filename}"
                         alt="Screenshot of Page {page_num}"
                         class="w-full h-auto object-contain clickable-image"
-                        onclick="openModal('images/{screenshot_filename}')"
+                        onclick="openModal('images/{screenshot_filename}', '{page_num}', 'screenshot', '', '', 'png', '', '')"
                         data-image-id="page_{page_num}_screenshot"
                         data-image-filename="{screenshot_filename}"
                         data-image-hash=""
@@ -559,7 +559,7 @@ class HTMLBuilder:
         return """
             <button 
                 class="absolute top-2 right-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white px-3 py-1 rounded-full text-xs font-semibold opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center space-x-1 cursor-pointer shadow-lg ai-analysis-button"
-                onclick="analyzeImageFromButton(this, event); toggleAnalysis(this.closest('.relative.group').querySelector('[data-image-id]').dataset.imageId)"
+                onclick="analyzeImageFromButton(this, event)"
                 title="Click for AI analysis"
                 style="display: none;"
             >
@@ -583,6 +583,13 @@ class HTMLBuilder:
                         </svg>
                         AI Analysis
                     </span>
+                    <button
+                        class="text-xs bg-purple-100 hover:bg-purple-200 text-purple-700 px-2 py-1 rounded transition-colors"
+                        onclick="toggleAnalysis('{image_id}')"
+                        id="btn-{image_id}"
+                    >
+                        Analyze
+                    </button>
                 </div>
                 <div 
                     id="analysis-{image_id}" 

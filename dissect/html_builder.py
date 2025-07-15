@@ -279,19 +279,6 @@ class HTMLBuilder:
             </div>
         </div>
     </div>
-    <script>
-        function reinitializeAI() {{
-            if (window.initializeAI) {{
-                window.initializeAI();
-            }}
-        }}
-
-        const originalLoadMorePages = window.loadMorePages;
-        window.loadMorePages = function() {{
-            originalLoadMorePages();
-            setTimeout(reinitializeAI, 500);
-        }}
-    </script>
         """
         
         return content
@@ -526,9 +513,9 @@ class HTMLBuilder:
             return f"""
                 <div class="relative group">
                     <div class="{card_class}">
-                        <div class="aspect-w-16 aspect-h-9 bg-gray-100 relative" onclick="openModal('images/{img['filename']}', '{img['page']}', '{img['index']}', '{img['width']}', '{img['height']}', '{img.get('format', 'unknown')}', '{self._format_bytes(img.get('size_bytes', 0))}', '{img.get('hash', '')[:8]}')">
+                        <div class="aspect-w-16 aspect-h-9 bg-gray-100 relative" onclick="openModal('{self.output_dir / 'images' / img['filename']}', '{img['page']}', '{img['index']}', '{img['width']}', '{img['height']}', '{img.get('format', 'unknown')}', '{self._format_bytes(img.get('size_bytes', 0))}', '{img.get('hash', '')[:8]}')">
                             <img 
-                                src="images/{img['filename']}" 
+                                src="{self.output_dir / 'images' / img['filename']}"
                                 alt="Page {img['page']} Image {img['index']}"
                                 class="{image_class}"
                                 data-image-id="{img['page']}_{img['index']}"
@@ -575,7 +562,7 @@ class HTMLBuilder:
         return """
             <button 
                 class="absolute top-2 right-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white px-3 py-1 rounded-full text-xs font-semibold opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center space-x-1 cursor-pointer shadow-lg ai-analysis-button"
-                onclick="analyzeImageFromButton(this, event)"
+                onclick="analyzeImageFromButton(this, event); toggleAnalysis(this.closest('.relative.group').querySelector('[data-image-id]').dataset.imageId)"
                 title="Click for AI analysis"
                 style="display: none;"
             >
@@ -599,13 +586,6 @@ class HTMLBuilder:
                         </svg>
                         AI Analysis
                     </span>
-                    <button
-                        class="text-xs bg-purple-100 hover:bg-purple-200 text-purple-700 px-2 py-1 rounded transition-colors"
-                        onclick="toggleAnalysis('{image_id}')"
-                        id="btn-{image_id}"
-                    >
-                        Analyze
-                    </button>
                 </div>
                 <div 
                     id="analysis-{image_id}" 

@@ -370,24 +370,6 @@ class HTMLBuilder:
             </div>
             """
 
-        from PIL import Image
-        try:
-            with Image.open(self.output_dir / "images" / screenshot_filename) as img:
-                width, height = img.size
-        except FileNotFoundError:
-            width, height = 0, 0
-
-        screenshot_img = {
-            'filename': screenshot_filename,
-            'page': page_num,
-            'index': 'screenshot',
-            'width': width,
-            'height': height,
-            'format': 'png',
-            'size_bytes': 0,
-            'hash': hashlib.md5(f"{screenshot_filename}{page_num}".encode()).hexdigest(),
-        }
-
         return f"""
         <div>
             <h3 class="text-lg font-semibold text-gray-900 mb-3 flex items-center">
@@ -396,7 +378,19 @@ class HTMLBuilder:
                 </svg>
                 Page Screenshot
             </h3>
-            {self._generate_image_card(screenshot_img, is_small=False)}
+            <div class="relative group">
+                <div class="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                    <img
+                        src="images/{screenshot_filename}"
+                        alt="Screenshot of Page {page_num}"
+                        class="w-full h-auto object-contain clickable-image"
+                        onclick="openModal('images/{screenshot_filename}')"
+                        data-image-id="page_{page_num}_screenshot"
+                    >
+                    {self._generate_ai_button()}
+                    {self._generate_ai_analysis_section({'page': page_num, 'index': 'screenshot'})}
+                </div>
+            </div>
         </div>
         """
     
@@ -513,9 +507,9 @@ class HTMLBuilder:
             return f"""
                 <div class="relative group">
                     <div class="{card_class}">
-                        <div class="aspect-w-16 aspect-h-9 bg-gray-100 relative" onclick="openModal('{self.output_dir / 'images' / img['filename']}', '{img['page']}', '{img['index']}', '{img['width']}', '{img['height']}', '{img.get('format', 'unknown')}', '{self._format_bytes(img.get('size_bytes', 0))}', '{img.get('hash', '')[:8]}')">
+                        <div class="aspect-w-16 aspect-h-9 bg-gray-100 relative" onclick="openModal('images/{img['filename']}', '{img['page']}', '{img['index']}', '{img['width']}', '{img['height']}', '{img.get('format', 'unknown')}', '{self._format_bytes(img.get('size_bytes', 0))}', '{img.get('hash', '')[:8]}')">
                             <img 
-                                src="{self.output_dir / 'images' / img['filename']}"
+                                src="images/{img['filename']}"
                                 alt="Page {img['page']} Image {img['index']}"
                                 class="{image_class}"
                                 data-image-id="{img['page']}_{img['index']}"
@@ -562,7 +556,7 @@ class HTMLBuilder:
         return """
             <button 
                 class="absolute top-2 right-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white px-3 py-1 rounded-full text-xs font-semibold opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center space-x-1 cursor-pointer shadow-lg ai-analysis-button"
-                onclick="analyzeImageFromButton(this, event); toggleAnalysis(this.closest('.relative.group').querySelector('[data-image-id]').dataset.imageId)"
+                onclick="analyzeImageFromButton(this, event)"
                 title="Click for AI analysis"
                 style="display: none;"
             >
@@ -586,6 +580,13 @@ class HTMLBuilder:
                         </svg>
                         AI Analysis
                     </span>
+                    <button
+                        class="text-xs bg-purple-100 hover:bg-purple-200 text-purple-700 px-2 py-1 rounded transition-colors"
+                        onclick="toggleAnalysis('{image_id}')"
+                        id="btn-{image_id}"
+                    >
+                        Analyze
+                    </button>
                 </div>
                 <div 
                     id="analysis-{image_id}" 

@@ -639,31 +639,30 @@ function applyImageSizeFilter() {
     const isChecked = showSmallCheck ? showSmallCheck.checked : false;
     const minArea = MIN_IMAGE_SIZE * MIN_IMAGE_SIZE;
 
-    document.querySelectorAll('.page-section').forEach(page => {
-        const regularImagesContainer = page.querySelector('.regular-images');
-        if (regularImagesContainer) {
-            const regularImages = regularImagesContainer.querySelectorAll('.relative.group');
-            regularImages.forEach(card => {
-                card.style.display = 'block';
-            });
-        }
+    document.querySelectorAll('.relative.group').forEach(card => {
+        const img = card.querySelector('img');
+        if (img) {
+            const width = parseInt(img.dataset.width) || 0;
+            const height = parseInt(img.dataset.height) || 0;
+            const area = width * height;
 
-        const smallImagesContainer = page.querySelector('.small-images');
-        if (smallImagesContainer) {
-            const smallImages = smallImagesContainer.querySelectorAll('.relative.group');
-            smallImages.forEach(card => {
-                const img = card.querySelector('img');
-                if (img) {
-                    const width = parseInt(img.dataset.width) || 0;
-                    const height = parseInt(img.dataset.height) || 0;
-                    const area = width * height;
-                    if (area < minArea) {
-                        card.style.display = isChecked ? 'block' : 'none';
-                    }
-                }
-            });
-            smallImagesContainer.style.display = isChecked ? 'block' : 'none';
+            if (area < minArea) {
+                card.style.display = isChecked ? 'block' : 'none';
+            } else {
+                card.style.display = 'block';
+            }
         }
+    });
+
+    document.querySelectorAll('.small-images').forEach(container => {
+        const smallImages = container.querySelectorAll('.relative.group');
+        let hasVisibleSmallImages = false;
+        smallImages.forEach(card => {
+            if (card.style.display !== 'none') {
+                hasVisibleSmallImages = true;
+            }
+        });
+        container.style.display = hasVisibleSmallImages ? 'block' : 'none';
     });
 }
 
@@ -894,7 +893,6 @@ function toggleAutoLoad() {
 
 function toggleSmallImages() {
     applyImageSizeFilter();
-    saveSettings();
 }
 
 

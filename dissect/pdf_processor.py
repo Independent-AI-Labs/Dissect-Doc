@@ -114,20 +114,24 @@ class PDFProcessor:
     def _extract_page_screenshot(self, page: fitz.Page, page_num: int) -> Optional[str]:
         """Extract a screenshot of the page"""
         try:
+            self.logger.info(f"Attempting to generate screenshot for page {page_num + 1}")
             # Render page to a pixmap
             pix = page.get_pixmap()
+            self.logger.info(f"Pixmap generated for page {page_num + 1}")
 
             # Generate filename
             screenshot_filename = f"page_{page_num + 1}_screenshot.png"
             screenshot_path = self.images_dir / screenshot_filename
+            self.logger.info(f"Saving screenshot for page {page_num + 1} to {screenshot_path}")
 
             # Save screenshot
             pix.save(str(screenshot_path))
+            self.logger.info(f"Successfully saved screenshot for page {page_num + 1}")
 
             return screenshot_filename
 
         except Exception as e:
-            self.logger.error(f"Page {page_num + 1} screenshot error: {str(e)}")
+            self.logger.error(f"Page {page_num + 1} screenshot error: {str(e)}", exc_info=True)
             return None
 
     def _process_text_blocks(self, text_dict: Dict) -> List[Dict]:

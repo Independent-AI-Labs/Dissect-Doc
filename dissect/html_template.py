@@ -41,7 +41,7 @@ class HTMLTemplate:
         """CSS styles for the application"""
         return """
     <style>
-        .modal {
+        .modal, .ai-modal {
             display: none;
             position: fixed;
             z-index: 1000;
@@ -52,7 +52,7 @@ class HTMLTemplate:
             background-color: rgba(0, 0, 0, 0.8);
             backdrop-filter: blur(5px);
         }
-        .modal.show {
+        .modal.show, .ai-modal.show {
             display: flex;
             align-items: center;
             justify-content: center;
@@ -68,6 +68,15 @@ class HTMLTemplate:
             object-fit: contain;
             border-radius: 8px;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+        .ai-modal-content {
+            background-color: #f3f4f6;
+            padding: 2rem;
+            border-radius: 0.5rem;
+            width: 90vw;
+            max-width: 1200px;
+            height: 90vh;
+            overflow-y: auto;
         }
         .duplicate-indicator {
             position: absolute;
@@ -268,6 +277,21 @@ class HTMLTemplate:
             <img id="modalImage" class="modal-image" alt="Full size image">
         </div>
     </div>
+
+    <div id="aiModal" class="ai-modal">
+        <div class="ai-modal-content">
+            <button
+                onclick="closeAIModal()"
+                class="absolute top-4 right-4 z-10 bg-gray-400 hover:bg-gray-500 text-white w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200"
+                title="Close (ESC)"
+            >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+            <div id="aiModalBody"></div>
+        </div>
+    </div>
         """
 
     @staticmethod
@@ -347,25 +371,7 @@ class HTMLTemplate:
                     onclick="saveSettings()"
                     class="w-full bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors mb-2"
                 >
-                    Save Settings
-                </button>
-                <button 
-                    onclick="applySettingsToUI()"
-                    class="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors mb-2"
-                >
-                    Apply Now
-                </button>
-                <button 
-                    onclick="debugSettingsState()"
-                    class="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors mb-2"
-                >
-                    Debug Settings
-                </button>
-                <button 
-                    onclick="resetSettings()"
-                    class="w-full bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-md text-sm font-medium transition-colors"
-                >
-                    Reset to Defaults
+                    Save & Apply
                 </button>
             </div>
         </div>
@@ -631,11 +637,7 @@ function applySettingsToUI() {
     }
     
     // Apply small images setting
-    const showSmallCheck = document.getElementById('showSmallImages');
-    if (showSmallCheck && showSmallCheck.checked) {
-        console.log('Applying small images visibility');
-        toggleSmallImages();
-    }
+    applyImageSizeFilter();
     
     // Apply auto-load setting
     if (AUTO_LOAD_ENABLED) {
@@ -644,6 +646,37 @@ function applySettingsToUI() {
     
     // Update image size filter display
     updateImageSizeDisplay();
+}
+
+function applyImageSizeFilter() {
+    const showSmallCheck = document.getElementById('showSmallImages');
+    const isChecked = showSmallCheck ? showSmallCheck.checked : false;
+
+    document.querySelectorAll('.page-section').forEach(page => {
+        const regularImages = page.querySelectorAll('.regular-images .relative.group');
+        const smallImages = page.querySelectorAll('.small-images .relative.group');
+
+        regularImages.forEach(card => {
+            const img = card.querySelector('img');
+            if (img) {
+                const width = parseInt(img.dataset.width);
+                if (width < MIN_IMAGE_SIZE) {
+                    card.style.display = isChecked ? 'block' : 'none';
+                } else {
+                    card.style.display = 'block';
+                }
+            }
+        });
+
+        smallImages.forEach(card => {
+            card.style.display = isChecked ? 'block' : 'none';
+        });
+
+        const smallImagesContainer = page.querySelector('.small-images');
+        if (smallImagesContainer) {
+            smallImagesContainer.style.display = isChecked ? 'block' : 'none';
+        }
+    });
 }
 
 function enableAIFeatures() {
@@ -795,6 +828,7 @@ function saveSettings() {
             }, 2000);
         }
         console.log('Settings saved successfully');
+        applySettingsToUI();
     } catch (error) {
         console.error('Error saving settings:', error);
     }
@@ -879,37 +913,6 @@ function toggleAutoLoad() {
     }
 }
 
-function toggleSmallImages() {
-    const checkbox = document.getElementById('showSmallImages');
-    const smallImageContainers = document.querySelectorAll('.small-images');
-    
-    if (checkbox && smallImageContainers) {
-        const isChecked = checkbox.checked;
-        console.log(`Toggling small images: ${isChecked ? 'show' : 'hide'}`);
-        
-        smallImageContainers.forEach(container => {
-            if (isChecked) {
-                container.classList.add('show');
-                container.style.display = 'block';
-            } else {
-                container.classList.remove('show');
-                container.style.display = 'none';
-            }
-        });
-        
-        // Save this setting immediately
-        const savedSettings = localStorage.getItem(STORAGE_KEY);
-        if (savedSettings) {
-            try {
-                const settings = JSON.parse(savedSettings);
-                settings.showSmallImages = isChecked;
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-            } catch (error) {
-                console.error('Error updating small images setting:', error);
-            }
-        }
-    }
-}
 
 // Lazy loading functions
 async function loadPagesData() {
@@ -938,6 +941,7 @@ function renderPageFromData(pageNumber) {
     const small_page_images = page_images.filter(img => 
         (img.width || 0) < MIN_IMAGE_SIZE || (img.height || 0) < MIN_IMAGE_SIZE
     );
+    const screenshot_filename = pageData.screenshot;
     
     return `
         <div class="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden page-section" data-page="${pageNumber}">
@@ -963,24 +967,74 @@ function renderPageFromData(pageNumber) {
             </div>
             
             <div class="p-6">
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <div class="space-y-6">
-                        <div>
-                            <h3 class="text-lg font-semibold text-gray-900 mb-3 flex items-center">
-                                <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                                </svg>
-                                Text Content
-                            </h3>
-                            <div class="bg-gray-50 rounded-lg p-4 max-h-96 overflow-y-auto">
-                                <pre class="text-sm text-gray-700 whitespace-pre-wrap font-mono leading-relaxed">${pageData.text.substring(0, 2000)}${pageData.text.length > 2000 ? '...' : ''}</pre>
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div class="lg:col-span-1">
+                        ${generateScreenshotSection(screenshot_filename, pageNumber)}
+                    </div>
+                    <div class="lg:col-span-2 grid grid-cols-1 gap-8">
+                        <div class="space-y-6">
+                            <div>
+                                <h3 class="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+                                    <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                    </svg>
+                                    Text Content
+                                </h3>
+                                <div class="bg-gray-50 rounded-lg p-4 max-h-96 overflow-y-auto">
+                                    <pre class="text-sm text-gray-700 whitespace-pre-wrap font-mono leading-relaxed">${pageData.text.substring(0, 2000)}${pageData.text.length > 2000 ? '...' : ''}</pre>
+                                </div>
                             </div>
                         </div>
+
+                        <div class="space-y-6">
+                            ${generateImagesSection(regular_page_images, small_page_images)}
+                        </div>
                     </div>
-                    
-                    <div class="space-y-6">
-                        ${generateImagesSection(regular_page_images, small_page_images)}
-                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function generateScreenshotSection(screenshot_filename, page_num) {
+    if (!screenshot_filename) {
+        return `
+            <div class="bg-gray-50 rounded-lg p-8 text-center">
+                <p class="text-gray-500">No screenshot available</p>
+            </div>
+        `;
+    }
+
+    const showAI = API_KEY && API_KEY.trim() !== '';
+
+    return `
+        <div>
+            <h3 class="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+                <svg class="w-5 h-5 mr-2 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                </svg>
+                Page Screenshot
+            </h3>
+            <div class="relative group">
+                <div class="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                    <img
+                        src="images/${screenshot_filename}"
+                        alt="Screenshot of Page ${page_num}"
+                        class="w-full h-auto object-contain clickable-image"
+                        onclick="openModal('images/${screenshot_filename}')"
+                        data-image-id="page_${page_num}_screenshot"
+                    >
+                    ${showAI ? `
+                    <button
+                        class="absolute top-2 right-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white px-3 py-1 rounded-full text-xs font-semibold opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center space-x-1 cursor-pointer shadow-lg ai-analysis-button"
+                        onclick="analyzeImageFromButton(this, event)"
+                        title="Click for AI analysis"
+                    >
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                        </svg>
+                        <span>AI</span>
+                    </button>` : ''}
                 </div>
             </div>
         </div>
@@ -1229,13 +1283,13 @@ function setupIntersectionObserver() {
 }
 
 // Modal functions
-function openModal(filename, page, index, width, height, format, fileSize, hash) {
+function openModal(imageSrc, page, index, width, height, format, fileSize, hash) {
     const modal = document.getElementById('imageModal');
     const modalImage = document.getElementById('modalImage');
     const modalInfo = document.getElementById('modalImageInfo');
     
     if (modal && modalImage && modalInfo) {
-        modalImage.src = 'images/' + filename;
+        modalImage.src = imageSrc;
         modalImage.alt = 'Page ' + page + ' Image ' + index;
         
         let infoHTML = '<div class="grid grid-cols-2 gap-4 text-sm">';
@@ -1247,7 +1301,7 @@ function openModal(filename, page, index, width, height, format, fileSize, hash)
         if (hash && hash !== 'undefined') {
             infoHTML += '<div><strong>Hash:</strong> ' + hash + '...</div>';
         }
-        infoHTML += '<div class="col-span-2"><strong>Filename:</strong> ' + filename + '</div>';
+        infoHTML += '<div class="col-span-2"><strong>Filename:</strong> ' + imageSrc.split('/').pop() + '</div>';
         infoHTML += '</div>';
         
         modalInfo.innerHTML = infoHTML;
@@ -1258,6 +1312,25 @@ function openModal(filename, page, index, width, height, format, fileSize, hash)
 
 function closeModal() {
     const modal = document.getElementById('imageModal');
+    if (modal) {
+        modal.classList.remove('show');
+        document.body.style.overflow = 'auto';
+    }
+}
+
+function openAIModal(analysis) {
+    const modal = document.getElementById('aiModal');
+    const body = document.getElementById('aiModalBody');
+
+    if (modal && body) {
+        body.innerHTML = analysis;
+        modal.classList.add('show');
+        document.body.style.overflow = 'hidden';
+    }
+}
+
+function closeAIModal() {
+    const modal = document.getElementById('aiModal');
     if (modal) {
         modal.classList.remove('show');
         document.body.style.overflow = 'auto';
@@ -1408,7 +1481,7 @@ function showAnalysis(imageId, analysis) {
     
     if (isLong) {
         content += '<div class="mt-2 text-center">';
-        content += '<button onclick="toggleAnalysisExpansion(' + "'" + imageId + "'" + ')" class="text-xs text-purple-600 hover:text-purple-800 font-medium bg-purple-50 px-2 py-1 rounded expand-pill">Show More</button>';
+        content += '<button onclick="openAIModal(analysisCache.get(' + "'" + imageId + "'" + '))" class="text-xs text-purple-600 hover:text-purple-800 font-medium bg-purple-50 px-2 py-1 rounded expand-pill">Show More</button>';
         content += '</div>';
     }
     
@@ -1416,11 +1489,11 @@ function showAnalysis(imageId, analysis) {
     
     if (analysisDiv) {
         analysisDiv.innerHTML = content;
-        analysisCache.set(imageId, content);
+        analysisCache.set(imageId, parsedAnalysis);
         
         const img = document.querySelector('[data-image-id="' + imageId + '"]');
         if (img && img.dataset.imageHash) {
-            hashAnalysisCache.set(img.dataset.imageHash, content);
+            hashAnalysisCache.set(img.dataset.imageHash, parsedAnalysis);
         }
     }
 }
@@ -1581,11 +1654,20 @@ document.addEventListener('DOMContentLoaded', async function() {
     }, 1500);
     
     // Add modal click handler
-    const modal = document.getElementById('imageModal');
-    if (modal) {
-        modal.addEventListener('click', function(e) {
+    const imageModal = document.getElementById('imageModal');
+    if (imageModal) {
+        imageModal.addEventListener('click', function(e) {
             if (e.target === this) {
                 closeModal();
+            }
+        });
+    }
+
+    const aiModal = document.getElementById('aiModal');
+    if (aiModal) {
+        aiModal.addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeAIModal();
             }
         });
     }
@@ -1694,6 +1776,8 @@ window.toggleSmallImages = toggleSmallImages;
 window.loadMorePages = loadMorePages;
 window.openModal = openModal;
 window.closeModal = closeModal;
+window.openAIModal = openAIModal;
+window.closeAIModal = closeAIModal;
 window.analyzeImageFromButton = analyzeImageFromButton;
 window.toggleAnalysis = toggleAnalysis;
 window.toggleAnalysisExpansion = toggleAnalysisExpansion;

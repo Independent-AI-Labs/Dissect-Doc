@@ -228,7 +228,8 @@ class HTMLBuilder:
                 'text': page_data.get('text', ''),
                 'word_count': self._count_words(page_data.get('text', '')),
                 'token_count': self._estimate_tokens(page_data.get('text', '')),
-                'images': [img for img in self.extraction_result['images'] if img['page'] == page_data['page_number']]
+                'images': [img for img in self.extraction_result['images'] if img['page'] == page_data['page_number']],
+                'screenshot': page_data.get('screenshot')
             }
         
         # Save to JSON file
@@ -306,6 +307,8 @@ class HTMLBuilder:
         regular_page_images = [img for img in page_images if img.get('width', 0) >= self.min_image_size and img.get('height', 0) >= self.min_image_size]
         small_page_images = [img for img in page_images if img.get('width', 0) < self.min_image_size or img.get('height', 0) < self.min_image_size]
         
+        screenshot_filename = page_data.get('screenshot')
+
         return f"""
         <div class="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden page-section" data-page="{page_num}">
             <div class="bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-4">
@@ -330,24 +333,62 @@ class HTMLBuilder:
             </div>
             
             <div class="p-6">
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <div class="space-y-6">
-                        <div>
-                            <h3 class="text-lg font-semibold text-gray-900 mb-3 flex items-center">
-                                <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                                </svg>
-                                Text Content
-                            </h3>
-                            <div class="bg-gray-50 rounded-lg p-4 max-h-96 overflow-y-auto">
-                                <pre class="text-sm text-gray-700 whitespace-pre-wrap font-mono leading-relaxed">{page_text[:2000]}{'...' if len(page_text) > 2000 else ''}</pre>
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div class="lg:col-span-1">
+                        {self._generate_screenshot_section(screenshot_filename, page_num)}
+                    </div>
+                    <div class="lg:col-span-2 grid grid-cols-1 gap-8">
+                        <div class="space-y-6">
+                            <div>
+                                <h3 class="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+                                    <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                    </svg>
+                                    Text Content
+                                </h3>
+                                <div class="bg-gray-50 rounded-lg p-4 max-h-96 overflow-y-auto">
+                                    <pre class="text-sm text-gray-700 whitespace-pre-wrap font-mono leading-relaxed">{page_text[:2000]}{'...' if len(page_text) > 2000 else ''}</pre>
+                                </div>
                             </div>
                         </div>
+
+                        <div class="space-y-6">
+                            {self._generate_images_section(regular_page_images, small_page_images)}
+                        </div>
                     </div>
-                    
-                    <div class="space-y-6">
-                        {self._generate_images_section(regular_page_images, small_page_images)}
-                    </div>
+                </div>
+            </div>
+        </div>
+        """
+
+    def _generate_screenshot_section(self, screenshot_filename: Optional[str], page_num: int) -> str:
+        """Generate the screenshot section for a page"""
+        if not screenshot_filename:
+            return """
+            <div class="bg-gray-50 rounded-lg p-8 text-center">
+                <p class="text-gray-500">No screenshot available</p>
+            </div>
+            """
+
+        return f"""
+        <div>
+            <h3 class="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+                <svg class="w-5 h-5 mr-2 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                </svg>
+                Page Screenshot
+            </h3>
+            <div class="relative group">
+                <div class="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                    <img
+                        src="images/{screenshot_filename}"
+                        alt="Screenshot of Page {page_num}"
+                        class="w-full h-auto object-contain clickable-image"
+                        onclick="openModal('images/{screenshot_filename}')"
+                        data-image-id="page_{page_num}_screenshot"
+                    >
+                    {self._generate_ai_button()}
+                    {self._generate_ai_analysis_section({{'page': page_num, 'index': 'screenshot'}})}
                 </div>
             </div>
         </div>
@@ -466,7 +507,7 @@ class HTMLBuilder:
             return f"""
                 <div class="relative group">
                     <div class="{card_class}">
-                        <div class="aspect-w-16 aspect-h-9 bg-gray-100 relative" onclick="openModal('{img['filename']}', '{img['page']}', '{img['index']}', '{img['width']}', '{img['height']}', '{img.get('format', 'unknown')}', '{self._format_bytes(img.get('size_bytes', 0))}', '{img.get('hash', '')[:8]}')">
+                        <div class="aspect-w-16 aspect-h-9 bg-gray-100 relative" onclick="openModal('images/{img['filename']}', '{img['page']}', '{img['index']}', '{img['width']}', '{img['height']}', '{img.get('format', 'unknown')}', '{self._format_bytes(img.get('size_bytes', 0))}', '{img.get('hash', '')[:8]}')">
                             <img 
                                 src="images/{img['filename']}" 
                                 alt="Page {img['page']} Image {img['index']}"
@@ -474,6 +515,7 @@ class HTMLBuilder:
                                 data-image-id="{img['page']}_{img['index']}"
                                 data-image-filename="{img['filename']}"
                                 data-image-hash="{img.get('hash', '')}"
+                                data-width="{img['width']}"
                                 loading="lazy"
                             >
                             <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-opacity duration-200"></div>

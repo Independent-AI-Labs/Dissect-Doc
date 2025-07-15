@@ -815,7 +815,7 @@ function saveSettings() {
             button.classList.remove('bg-purple-600', 'hover:bg-purple-700');
             button.classList.add('bg-green-600', 'hover:bg-green-700');
             setTimeout(() => {
-                button.textContent = originalText;
+                button.textContent = 'Save & Apply';
                 button.classList.remove('bg-green-600', 'hover:bg-green-700');
                 button.classList.add('bg-purple-600', 'hover:bg-purple-700');
             }, 2000);
@@ -880,6 +880,8 @@ function updateMinImageSize() {
     if (slider && valueDisplay) {
         MIN_IMAGE_SIZE = parseInt(slider.value);
         valueDisplay.textContent = MIN_IMAGE_SIZE + 'px';
+        applyImageSizeFilter();
+        saveSettings();
     }
 }
 

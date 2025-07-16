@@ -924,7 +924,7 @@ function renderPageFromData(pageNumber) {
     const small_page_images = page_images.filter(img => 
         (img.width || 0) * (img.height || 0) < minArea
     );
-    const screenshot_filename = pageData.screenshot;
+    const screenshot = pageData.screenshot;
     
     return `
         <div class="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden page-section" data-page="${pageNumber}">
@@ -952,7 +952,7 @@ function renderPageFromData(pageNumber) {
             <div class="p-6">
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     <div class="lg:col-span-1">
-                        ${generateScreenshotSection(screenshot_filename, pageNumber)}
+                        ${generateScreenshotSection(screenshot, pageNumber)}
                     </div>
                     <div class="lg:col-span-2 grid grid-cols-1 gap-8">
                         <div class="space-y-6">
@@ -979,8 +979,8 @@ function renderPageFromData(pageNumber) {
     `;
 }
 
-function generateScreenshotSection(screenshot_filename, page_num) {
-    if (!screenshot_filename) {
+function generateScreenshotSection(screenshot, page_num) {
+    if (!screenshot || !screenshot.filename) {
         return `
             <div class="bg-gray-50 rounded-lg p-8 text-center">
                 <p class="text-gray-500">No screenshot available</p>
@@ -988,16 +988,8 @@ function generateScreenshotSection(screenshot_filename, page_num) {
         `;
     }
 
-    const screenshot_img_obj = {
-        filename: screenshot_filename,
-        page: page_num,
-        index: 'screenshot',
-        width: 1024,
-        height: 768,
-        format: 'PNG',
-        size_bytes: 0,
-        hash: `screenshot_${page_num}`
-    };
+    // Add index for compatibility with the card generator
+    screenshot.index = 'screenshot';
 
     return `
         <div>
@@ -1007,7 +999,7 @@ function generateScreenshotSection(screenshot_filename, page_num) {
                 </svg>
                 Page Screenshot
             </h3>
-            ${generateImageCard(screenshot_img_obj, false, true)}
+            ${generateImageCard(screenshot, false, true)}
         </div>
     `;
 }

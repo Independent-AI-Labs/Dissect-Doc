@@ -21,6 +21,7 @@ class HTMLTemplate:
     <title>PDF Analysis Report - {filename}</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://unpkg.com/@panzoom/panzoom@4.5.1/dist/panzoom.min.js"></script>
 {css_styles}
 </head>
 <body class="bg-gradient-to-br from-blue-50 via-white to-purple-50 min-h-screen">
@@ -1263,6 +1264,8 @@ function setupIntersectionObserver() {
 }
 
 // Modal functions
+let panzoomInstance = null;
+
 function openModal(imageSrc, page, index, width, height, format, fileSize, hash) {
     const modal = document.getElementById('imageModal');
     const modalImage = document.getElementById('modalImage');
@@ -1287,6 +1290,12 @@ function openModal(imageSrc, page, index, width, height, format, fileSize, hash)
         modalInfo.innerHTML = infoHTML;
         modal.classList.add('show');
         document.body.style.overflow = 'hidden';
+
+        panzoomInstance = Panzoom(modalImage, {
+            maxScale: 10,
+            minScale: 0.5
+        });
+        modalImage.parentElement.addEventListener('wheel', panzoomInstance.zoomWithWheel);
     }
 }
 
@@ -1295,6 +1304,10 @@ function closeModal() {
     if (modal) {
         modal.classList.remove('show');
         document.body.style.overflow = 'auto';
+        if (panzoomInstance) {
+            panzoomInstance.destroy();
+            panzoomInstance = null;
+        }
     }
 }
 
